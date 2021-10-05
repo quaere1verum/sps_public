@@ -1,0 +1,22 @@
+{
+	"BookTitle": {
+					"0":"Understanding Cryptography",
+					"1":"Handbook of Applied Cryptography",
+					"2":"An Introduction to Mathematical Cryptography"
+				},
+	"Author":{
+				"0":"Christof Paar & Jan Pelzl",
+				"1":"Alfred Menezes, Paul van Oorschot, Scott Vanstone",
+				"2":"Jeffrey Hoffstein"
+			},
+	"Publisher":{
+					"0":"Springer",
+					"1":"CRC Press",
+					"2":"Springer"
+				},
+	"Year":{
+			"0":"2009",
+			"1":"1996",
+			"2":"2008"
+			}
+}
