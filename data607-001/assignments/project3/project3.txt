@@ -53,7 +53,7 @@ CREATE TABLE `skill_rankings_norm`
     `skill_id` varchar(100) NOT NULL,
      primary key ( nameid, skill_id) ,
      foreign key (companyid)
-		references names(companyid),
+		references company(companyid),
 	 foreign key (skill_id) 
 		references skill_types(skill_id) );
         
