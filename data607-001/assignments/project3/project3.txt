@@ -10,11 +10,57 @@ Victoria McEleney, Leticia Salazar, Javier Pajuelo
 COLLABORATION TOOLS:
 git(for code and project documentation md file), slack, phone, email, <insert tools for ER diagram if any other than paint or pen/paper>
 
+
 DATA SOURCES:
 <Insert data sources, where the data can be found, and how to load it. >
+We will use different sets of downloaded HTML files from  job posting sites.
+These different HTML files will be uploaded in github and read from our R code.
+We will parse the HTML job posting into data easily accessible by R tibbles.
 
+We define the normalized empty tables in SQL that define our tibble R data.
+Then, we insert the data into a SQL database.
+
+
+## Note the "DATABASE LOGICAL MODEL" looks almost identical to me to the ER diagram. 
+ER would just add connections between the keys already defined by schema and keywords 'references'
 
 DATABASE LOGICAL MODEL:
+I assume logical model means the schemas.
+
+CREATE TABLE `company`
+(   
+	`companyid` int, 
+    `name` varchar(100) NOT NULL,
+    `business` varchar(100) NOT NULL, -- what kind of business is the company into
+    primary key (companyid)
+);
+
+CREATE TABLE `skill_types`
+(   
+	`skill_id` varchar(100) NOT NULL, 
+    `skillname` varchar(100) NOT NULL,
+    `description` varchar(100) NOT NULL,
+	`weight` int NOT NULL, -- define some kind of weight from data?
+	`requires_college_degree` varchar(100)  NOT NULL,
+    `requires_graduate_degree` varchar(100)  NOT NULL,
+    PRIMARY KEY (skill_id)
+);
+
+-- define skill rankings, we can add more columns.
+CREATE TABLE `skill_rankings_norm`
+(   `skill_rank` int, 
+    `companyid` int,
+    `skill_id` varchar(100) NOT NULL,
+     primary key ( nameid, skill_id) ,
+     foreign key (companyid)
+		references names(companyid),
+	 foreign key (skill_id) 
+		references skill_types(skill_id) );
+        
+
+
 
 ENTITY-RELATIONSHIP DIAGRAM:
+
+
 
