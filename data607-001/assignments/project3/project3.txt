@@ -1,0 +1,20 @@
+PROJECT 3
+DATA607
+PROF. CATLIN
+10/6/2021
+---
+
+GROUP MEMBERS: 
+Victoria McEleney, Leticia Salazar, Javier Pajuelo
+
+COLLABORATION TOOLS:
+git(for code and project documentation md file), slack, phone, email, <insert tools for ER diagram if any other than paint or pen/paper>
+
+DATA SOURCES:
+<Insert data sources, where the data can be found, and how to load it. >
+
+
+DATABASE LOGICAL MODEL:
+
+ENTITY-RELATIONSHIP DIAGRAM:
+
