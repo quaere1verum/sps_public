@@ -1,0 +1,49 @@
+---
+title: "Project 3A"
+author: "Victoria McEleney, Leticia Salazar, Javier Pajuelo, Trang Do, Cassie Boylan"
+date: "10/7/2021"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+```
+
+
+## Collaboration Tools
+
+- github (for file sharing and project documentation)
+- Slack
+- email
+
+## Data Sources and Loading
+
+We are downloading HTML files from  job posting sites.
+These HTML files will be uploaded into github and read from our R code.
+
+
+## Loading Data - Code Structure Used
+
+html_data <- read_html(html_url)
+html_table <- html_data %>% html_elements("table") %>% html_table()
+
+how sold are we on scraping job postings for our data?  there are lots of assembled datasets we could potentially use
+https://rs.io/100-interesting-data-sets-for-statistics/ 
+
+Example:
+  retailURL <- "http://archive.ics.uci.edu//ml//machine-learning-databases//00502//online_retail_II.xlsx"
+GET(retailURL, write_disk(tempFileName <- tempfile(fileext = ".xlsx")))
+
+retail_sheet_2009 <- read_excel(tempFileName, sheet = "Year 2009-2010")
+retail_sheet_2010 <- read_excel(tempFileName, sheet = "Year 2010-2011")
+retaildf <- rbind(retail_sheet_2009, retail_sheet_2010)
+
+
+## Description of Data
+
+head() or glimpse of final r tibble can be entered here when our data has all been pulled together
+
+## ER Diagram
+
+Once we have the data loaded into the sql tables, we can create a dm object dbConnect () and dm_from_source.
+Once we have the dm object created, we can send it to dm_draw() to create an ER diagram.
