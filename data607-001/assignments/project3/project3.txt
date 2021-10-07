@@ -5,7 +5,7 @@ PROF. CATLIN
 ---
 
 GROUP MEMBERS: 
-Victoria McEleney, Leticia Salazar, Javier Pajuelo
+Victoria McEleney, Leticia Salazar, Javier Pajuelo, Trang Do
 
 COLLABORATION TOOLS:
 git(for code and project documentation md file), slack, phone, email, <insert tools for ER diagram if any other than paint or pen/paper>
