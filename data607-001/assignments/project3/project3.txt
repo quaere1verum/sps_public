@@ -61,7 +61,7 @@ ENTITY-RELATIONSHIP DIAGRAM:
 
 Once we have the data tidied and transformed we will use Quick Data Base Diagram to establish the connections between the dataset from Data.World and from Indeed. 
 
-https://app.quickdatabasediagrams.com/#/d/N66Zs4
+https://app.quickdatabasediagrams.com/#/d/N66Zs4 
 
 
 
