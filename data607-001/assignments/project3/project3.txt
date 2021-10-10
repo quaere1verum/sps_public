@@ -22,9 +22,6 @@ We define the normalized empty tables in SQL that define our tibble R data.
 Then, we insert the data into a SQL database.
 
 
-## Note the "DATABASE LOGICAL MODEL" looks almost identical to me to the ER diagram. 
-ER would just add connections between the keys already defined by schema and keywords 'references'
-
 DATABASE LOGICAL MODEL:
 I assume logical model means the schemas.
 
