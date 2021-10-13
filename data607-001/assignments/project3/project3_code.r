@@ -68,6 +68,7 @@ text_corpus_clean[[1]]$content
 text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
 text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
 text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
+text_corpus_clean <- tm_map(text_corpus_clean, removeWords, c("the", "and", stopwords("english")))
 text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
 
 
@@ -87,6 +88,9 @@ text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 #text_corpus_clean <- tm_map(text_corpus_clean, stemDocument, language = "english")
 #writeLines(head(strwrap(text_corpus_clean[[2]]), 15))
 
+# adding more words to remove
+stop_words <- c("science", "will", "work")
+text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 
 
 tdm <- TermDocumentMatrix(text_corpus_clean) #or 
@@ -98,10 +102,26 @@ inspect(tdm)
 #inspect part of the term-document matrix
 inspect(tdm[1:10, 1:50])
 
+#inspect(review_dtm[500:505, 500:505])
 
 
 #Frequent terms that occur between 30 and 50 times in the corpus
 frequent_terms <- findFreqTerms (tdm,30,50) 
+
+#findFreqTerms (tdm,200, 1000) 
+#[1] "ability"     "analysis"    "analytics"   "business"    "models"      "python"      "scientist"   "statistical" "techniques" 
+#[10] "tools"       "using"       "years"       "development" "job"         "knowledge"   "learning"    "machine"     "skills"     
+#[19] "solutions"   "model"       "required"    "team"        "technical"  
+
+# looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
+install.packages("wordcloud") 
+library(wordcloud)
+freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
+
+
+
+
 
 #Word Frequency
 #install.packages("knitr")
