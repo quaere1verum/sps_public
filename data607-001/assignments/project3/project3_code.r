@@ -2,6 +2,7 @@
 # #######################
 # Project 3 
 # Code part
+# Use data to answer the question, "Which are the most valued data science skills?"
 # #######################
 
 
@@ -114,7 +115,7 @@ frequent_terms <- findFreqTerms (tdm,30,50)
 #[19] "solutions"   "model"       "required"    "team"        "technical"  
 
 # looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
-install.packages("wordcloud") 
+#install.packages("wordcloud") 
 library(wordcloud)
 freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
 wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
