@@ -42,11 +42,19 @@ dbSendQuery(con, "set global local_infile=true")
 x <- tibble('companyid'= '3', #as.integer(3),
             'company_name'='Facebook',
             'industry'='technology')
+
+# trying tmp tables
+dbWriteTable(con,"myTempTable", x)
+dbExecute(con,"insert into companies(companyid, company_name, industry) select companyid, company_name, industry from myTempTable")
+dbExecute(con,"drop table if exists myTempTable")
+dbExecute(con,"commit;")
+
+
 # need to populate tables before the skill_rankings table
-dbWriteTable(conn = con, 
-             name = "companies", 
-             overwrite=TRUE,
-             value = x)  ## x is any data frame
+# dbWriteTable(conn = con, 
+#             name = "companies", 
+#             overwrite=TRUE,
+#             value = x)  ## x is any data frame
 
 companies <- dbSendQuery(con, "select * from companies")
 data <- fetch(companies, n=-1)
@@ -60,27 +68,32 @@ data
 y <- tibble('skill_id'=55,
             'skill_name'='python',
             'description'='python language proficiency')
-dbWriteTable(conn = con, 
-             name = "skill_types", 
-             overwrite=TRUE,
-             value = y)  ## x is any data frame
+
+# trying tmp tables
+dbWriteTable(con,"myTempTable", y)
+dbExecute(con,"insert into skill_types(skill_id, skill_name, description) select skill_id, skill_name, description from myTempTable")
+dbExecute(con,"drop table if exists myTempTable")
+dbExecute(con,"commit;")
+
+
+#dbWriteTable(conn = con, 
+#             name = "skill_types", 
+#             overwrite=TRUE,
+#              value = y)  ## x is any data frame
 skill_types <- dbSendQuery(con, "select * from skill_types")
 data <- fetch(skill_types, n=-1)
 data
 
 
 
-#  facing an issue with this 
-# Error in .local(conn, statement, ...) : 
-# could not run statement: Failed to add the foreign key constraint. Missing index for constraint 'skill_rankings_ibfk_1' in the referenced table 'companies'
+
 skill_rankings_create_sql <- 'CREATE TABLE `skill_rankings`
 (   
-    `companyid` varchar(100) NOT NULL unique,
+    `companyid` varchar(100) NOT NULL,
     `skill_id` varchar(100) NOT NULL,
     `skill_rank` int NOT NULL,
      primary key( companyid, skill_id),
      foreign key(companyid) references companies(companyid),
 	  foreign key (skill_id)  references skill_types(skill_id) )'
 dbSendQuery(con, skill_rankings_create_sql)
-
 

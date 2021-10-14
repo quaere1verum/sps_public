@@ -76,7 +76,7 @@ for (i in 1:5) print (text_corpus[[i]]$content)
 
 ##Tokenization: Split a text into single word terms called "unigrams" 
 text_corpus_clean<-Boost_tokenizer(text_corpus)
-text_corpus_clean[[1]]$content
+#text_corpus_clean[[1]]$content
 
 
 
@@ -86,7 +86,7 @@ text_corpus_clean[[1]]$content
 text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
 text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
 text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
-text_corpus_clean <- tm_map(text_corpus_clean, removeWords, c("the", "and", stopwords("english")))
+#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, c("the", "and", stopwords("english")))
 text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
 
 
@@ -97,8 +97,8 @@ text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
 stop_words <- c(stopwords('english'), "a", "b") 
 
 ##Remove more stop words
-myStopwords <- c() # some set defined by myself based on particular data
-myStopwords <- setdiff(myStopwords, c("d", "e")) 
+#myStopwords <- c() # some set defined by myself based on particular data
+#myStopwords <- setdiff(myStopwords, c("d", "e")) 
 #text_corpus_clean <- tm_map(myCorpus, removeWords, myStopwords)
 text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 
@@ -143,15 +143,15 @@ wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 #Word Frequency
 #install.packages("knitr")
-library(knitr) 
+#library(knitr) 
 # Sum all columns(words) to get frequency
-words_frequency <- colSums(as.matrix(tdm)) 
+#words_frequency <- colSums(as.matrix(tdm)) 
 # create sort order (descending) for matrix
-ord <- order(words_frequency, decreasing=TRUE)
+#ord <- order(words_frequency, decreasing=TRUE)
 
 # get the top 20 words by frequency of appeearance
-words_frequency[head(ord, 20)] %>% 
-  kable()
+#words_frequency[head(ord, 20)] %>% 
+#  kable()
 
 
 
@@ -186,7 +186,7 @@ wordcloud(freq.df$word,freq.df$freq,max.words=100,random.order = F )
 
 #visualize the top 15 bigrams
 library(ggplot2)
-ggplot(head(freq.df,15), aes(reorder(word,freq), freq)) +
+ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
   geom_bar(stat = "identity") + coord_flip() +
   xlab("Bigrams") + ylab("Frequency") +
   ggtitle("Most frequent bigrams")
