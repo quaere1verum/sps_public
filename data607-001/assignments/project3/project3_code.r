@@ -46,6 +46,21 @@ get_inferred_skills <- function(jobspikr_data)
 inferred_skills <- get_inferred_skills(jobspikr_data)
 
 
+# will use this as uniq_id from the frame for companies
+#uniq_id
+#d578cbc1ebd47ee77eba9e981f3c2582
+# uniq_id is not good since there can be multiple job postings for the company
+library(digest)
+#a<-digest("key_a", algo='xxhash32')
+#[1] "4da5b0f8"
+#companies_table <- jobspikr_data %>% select(digest(jobspikr_data[[company_name]], algo='xxhash32'), company_name)
+
+#tmp_frame <- jobspikr_data %>% mutate(companyid=lapply(jobspikr_data$company_name, function(x) {digest(x, algo="md5", serialize = F)}))
+tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+
+companies <- tmp_frame %>% select(companyid, company_name)
+#df$hash <-lapply(jobspikr_data$company_name, function(x) {digest(x, algo="md5", serialize = F)})
+companies_table<- distinct(companies, companyid, company_name)
 
 
 # Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions
