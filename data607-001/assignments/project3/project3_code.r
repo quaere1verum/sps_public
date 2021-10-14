@@ -30,19 +30,36 @@ jobspikr_small_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/
 
 jobspikr_data <- load_csv_from_url(jobspikr_small_url)
 
+
+get_inferred_skills <- function(jobspikr_data)
+{
+  inferred_skills <- jobspikr_data[['inferred_skills']]
+  inferred_skills <- strsplit(inferred_skills, "\\|")
+  skills <- c()
+  for(inferred_skill in inferred_skills){
+    skills <-c(skills, inferred_skill)
+  }
+  # remove duplicates
+  return(skills[!duplicated(skills)])
+}
+
+inferred_skills <- get_inferred_skills(jobspikr_data)
+
+
+
+
 # Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions
 # character array 
 job_description_data <- jobspikr_data[['job_description']]
 
-
-
-
-
-# test project 3 string parsing...
-
 #data <- "hello , hllo?"
-
 data<- job_description_data
+data <- jobspikr_data[['inferred_skills']]
+
+# what happens if we pass data without | and instead splitted data
+inferred_skills <- jobspikr_data[['inferred_skills']]
+inferred_skills <- strsplit(inferred_skills, "\\|")
+data <- inferred_skills
 
 #put the data into a corpus for text processing
 text_corpus <- (VectorSource(data))
@@ -90,8 +107,8 @@ text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 #writeLines(head(strwrap(text_corpus_clean[[2]]), 15))
 
 # adding more words to remove
-stop_words <- c("science", "will", "work")
-text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
+#stop_words <- c("science", "will", "work")
+#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 
 
 tdm <- TermDocumentMatrix(text_corpus_clean) #or 
