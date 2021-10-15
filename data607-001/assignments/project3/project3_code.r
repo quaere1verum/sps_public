@@ -59,8 +59,61 @@ library(digest)
 tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
 
 companies <- tmp_frame %>% select(companyid, company_name)
-#df$hash <-lapply(jobspikr_data$company_name, function(x) {digest(x, algo="md5", serialize = F)})
-companies_table<- distinct(companies, companyid, company_name)
+
+# table ready for insertion
+companies_table <- distinct(companies, companyid, company_name)
+
+# trying tmp tables
+dbWriteTable(con,"myTempTable", companies_table)
+dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
+dbExecute(con,"drop table if exists myTempTable")
+dbExecute(con,"commit;")
+
+# companies data is your dataframe with the same schema as companies table defined under sql
+insert_into_companies_table<- function(companies_data)
+{
+  dbWriteTable(con,"myTempTable", companies_data)
+  dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+}
+
+# same thing, schema needs to be the same
+insert_into_skill_types_table <- function(skill_data)
+{
+  dbWriteTable(con,"myTempTable", skill_data)
+  dbExecute(con,"insert into skill_types(skill_id, skill_name) select skill_id, skill_name from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+  
+}
+
+##### Skill Set should be in Database
+test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
+skillset <-data.frame(skill=character())
+s <-length(test)
+
+for (i in 1:s){
+  for (j in 1:lengths(test[i])){
+    rows<-data.frame(skill=test[[i]][j])
+    skillset <-rbind(skillset,rows)
+  }  
+}
+
+word_freq<- skillset %>% group_by(skill)%>%   summarise(wfreq=n()) 
+
+# drop skill names that are NA doesn't make sense
+word_freq <- word_freq %>% drop_na() 
+tmp_frame <- word_freq %>% mutate(skill_id=unlist(lapply(skill, function(x) {digest(x, algo="md5", serialize = F)})), skill_name=skill)
+
+# table ready for insertion
+skill_data <- tmp_frame %>% select(skill_id, skill_name)
+insert_into_skill_types_table(skill_data)
+
+#############
+
+
+## RETRIEVAL OF GRAPHS BASED ON FREQUENCY STARTS...
 
 
 # Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions

@@ -35,20 +35,19 @@ CREATE TABLE `skill_types`
 (   
 	`skill_id` varchar(100) NOT NULL, 
     `skill_name` varchar(100) NOT NULL,
-    `description` varchar(100) NOT NULL, -- we could remove this
     PRIMARY KEY (skill_id)
 );
+
+select * from skill_types;
 
 -- equiv to names
 CREATE TABLE `companies`
 (   
-	-- `companyid` int UNSIGNED, 
     `companyid`  varchar(100) NOT NULL, 
-    `company_name` varchar(100) NOT NULL,
-    `industry` varchar(100) NOT NULL, -- we could remove this
+    `company_name` varchar(100) NOT NULL,    
     primary key (companyid)
 );
--- select * from companies;
+select * from companies;
 show full columns from companies;
 describe companies;
 
@@ -57,11 +56,12 @@ CREATE TABLE `skill_rankings`
 (   `skill_rank` int NOT NULL, -- how often the skills comes up in the job description
     `companyid` varchar(100) NOT NULL,
     `skill_id` varchar(100) NOT NULL,
-     primary key ( companyid, skill_id) ,
+     primary key ( companyid, skill_id),
      foreign key (companyid)
 		references companies(companyid),
 	 foreign key (skill_id)
 		references skill_types(skill_id) );
 
+select * from skill_rankings;
    
 
