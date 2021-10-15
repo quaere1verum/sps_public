@@ -11,6 +11,12 @@ library(tidyverse)
 library(curl)
 #install.packages("tm") # if not already installed
 library(tm)
+library(digest)
+#install.packages("hash")
+library(hash)
+#install.packages("wordcloud") 
+library(wordcloud)
+
 
 load_csv_from_url <- function(url_path)
 {
@@ -21,11 +27,7 @@ load_csv_from_url <- function(url_path)
 
 
 # RAW URL from data site moved to github
-jobspikr_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_united_states_job_postings_jobspikr.csv'
-
 jobspikr_small_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv'
-
-
 
 
 jobspikr_data <- load_csv_from_url(jobspikr_small_url)
@@ -46,28 +48,77 @@ get_inferred_skills <- function(jobspikr_data)
 inferred_skills <- get_inferred_skills(jobspikr_data)
 
 
-# will use this as uniq_id from the frame for companies
-#uniq_id
-#d578cbc1ebd47ee77eba9e981f3c2582
-# uniq_id is not good since there can be multiple job postings for the company
-library(digest)
-#a<-digest("key_a", algo='xxhash32')
-#[1] "4da5b0f8"
-#companies_table <- jobspikr_data %>% select(digest(jobspikr_data[[company_name]], algo='xxhash32'), company_name)
 
-#tmp_frame <- jobspikr_data %>% mutate(companyid=lapply(jobspikr_data$company_name, function(x) {digest(x, algo="md5", serialize = F)}))
-tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
 
-companies <- tmp_frame %>% select(companyid, company_name)
+#################################################################################
+# project3 frame insertion into SQL piece
 
-# table ready for insertion
-companies_table <- distinct(companies, companyid, company_name)
 
-# trying tmp tables
-dbWriteTable(con,"myTempTable", companies_table)
-dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
-dbExecute(con,"drop table if exists myTempTable")
-dbExecute(con,"commit;")
+# Assumptions:
+# ------------
+# * Windows Machine
+# * MySQL Workbench 8.0
+#   - there exists a user: 'root' &  server: 'localhost' with password=''. No password required.
+# * RStudio installed
+
+# Instructions:
+# -------------
+# 0.  git clone *.git or retrieve raw files from https://github.com/quaere1verum/sps...
+# 1.  Start MySQL Workbench
+#     a.) If your MySQL service does not start automatically when Windows starts, press Windows key and search for "Services", press enter.
+#         Search for MySQL80 and start the service.
+#     b.) Open the file project3.sql and run it. 
+# 2.  Start RStudio
+#     a.) Open and run the project3_code.r script
+#################################################################################
+
+############### write to DB functions ###############
+
+# install required packages and load libraries
+#install.packages("DBI")
+library(DBI)
+
+#install.packages("RMySQL")
+library(RMySQL)
+
+#install.packages("tidyverse")
+library(tidyverse)
+
+
+# create connection to DB 
+con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
+
+# set global local_infile=true;
+dbSendQuery(con, "set global local_infile=true")
+
+#companies <- dbSendQuery(con, "select * from companies")
+#data <- fetch(companies, n=-1)
+#data
+#companies <- dbSendQuery(con, "describe companies")
+#data <- fetch(companies, n=-1)
+#data
+#skill_types <- dbSendQuery(con, "select * from skill_types")
+#data <- fetch(skill_types, n=-1)
+#data
+
+
+
+# create skill rankings func
+create_skill_rankings_table<- function()
+{
+    dbExecute(con,"drop table if exists skill_rankings")
+    dbExecute(con,"commit;")
+    skill_rankings_create_sql <- 'CREATE TABLE `skill_rankings`
+    (   `skill_frequency` int NOT NULL,
+        `companyid` varchar(100) NOT NULL,
+        `skill_id` varchar(100) NOT NULL,
+         primary key( companyid, skill_id),
+         foreign key(companyid) references companies(companyid),
+    	  foreign key (skill_id)  references skill_types(skill_id) )'
+    dbSendQuery(con, skill_rankings_create_sql)
+}
+
+
 
 # companies data is your dataframe with the same schema as companies table defined under sql
 insert_into_companies_table<- function(companies_data)
@@ -98,10 +149,19 @@ insert_into_skill_rankings_table <- function(skill_rankings_data)
   dbExecute(con,"drop table if exists myTempTable")
   dbExecute(con,"commit;")
 }
+############### write to DB functions END  ###############
+
+
+# get Company data from frame and insert into table
+tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+companies <- tmp_frame %>% select(companyid, company_name)
+# table ready for insertion
+companies_table <- distinct(companies, companyid, company_name)
+insert_into_companies_table(companies_table)
 
 
 
-##### Skill Set should be in Database
+##### Grab Trang's skill data and insert into DB ############### 
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
 skillset <-data.frame(skill=character())
 s <-length(test)
@@ -112,7 +172,6 @@ for (i in 1:s){
     skillset <-rbind(skillset,rows)
   }  
 }
-
 word_freq<- skillset %>% group_by(skill)%>%   summarise(wfreq=n()) 
 
 # drop skill names that are NA doesn't make sense
@@ -122,141 +181,51 @@ tmp_frame <- word_freq %>% mutate(skill_id=unlist(lapply(skill, function(x) {dig
 # table ready for insertion
 skill_data <- tmp_frame %>% select(skill_id, skill_name)
 insert_into_skill_types_table(skill_data)
-
-#############
-
+############### skill table ends ############### 
 
 
 
 
-## RETRIEVAL OF GRAPHS BASED ON FREQUENCY STARTS...
 
+### RETRIEVAL OF GRAPHS BASED ON FREQUENCY STARTS... ###
+# Insert any corpus to data. Right now we pass Trang's word_freq
+data <- word_freq
 
-# Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions
-# character array 
-job_description_data <- jobspikr_data[['job_description']]
-
-#data <- "hello , hllo?"
-data<- job_description_data
-data <- jobspikr_data[['inferred_skills']]
-
-# what happens if we pass data without | and instead splitted data
-inferred_skills <- jobspikr_data[['inferred_skills']]
-inferred_skills <- strsplit(inferred_skills, "\\|")
-data <- inferred_skills
 
 #put the data into a corpus for text processing
 text_corpus <- (VectorSource(data))
 text_corpus <- Corpus(text_corpus)
-summary(text_corpus)
-
-# idx 5 assume to be present, but it aint
-#idx<-1
-#to see the text and examine the corpus
-text_corpus[[5]]$content
-for (i in 1:5) print (text_corpus[[i]]$content)
-
 
 
 ##Tokenization: Split a text into single word terms called "unigrams" 
 text_corpus_clean<-Boost_tokenizer(text_corpus)
-#text_corpus_clean[[1]]$content
-
-
-
 
 #Example in R: by using tm package
 #Normalization: lowercase the words and remove punctuation and numbers
 text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
 text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
 text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
-#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, c("the", "and", stopwords("english")))
 text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
 
 
-
-
 ##Remove stopwords and custom stopwords
-#text_corpus_clean <- c(stopwords('english'), "a", "b") gi
 stop_words <- c(stopwords('english'), "a", "b") 
-
-##Remove more stop words
-#myStopwords <- c() # some set defined by myself based on particular data
-#myStopwords <- setdiff(myStopwords, c("d", "e")) 
-#text_corpus_clean <- tm_map(myCorpus, removeWords, myStopwords)
 text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
-
-# requires new library... install.packages('SnowballC') I think it aims to keep stem words only.
-#text_corpus_clean <- tm_map(text_corpus_clean, stemDocument, language = "english")
-#writeLines(head(strwrap(text_corpus_clean[[2]]), 15))
-
-# adding more words to remove
-#stop_words <- c("science", "will", "work")
-#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
-
 
 tdm <- TermDocumentMatrix(text_corpus_clean) #or 
 dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, Inf)))
-inspect(tdm)
 
-# TODO: care about bounds ... can't be anything...
-
-#inspect part of the term-document matrix
-inspect(tdm[1:10, 1:50])
-
-#inspect(review_dtm[500:505, 500:505])
-
-
-#Frequent terms that occur between 30 and 50 times in the corpus
-frequent_terms <- findFreqTerms (tdm,30,50) 
-
-#findFreqTerms (tdm,200, 1000) 
-#[1] "ability"     "analysis"    "analytics"   "business"    "models"      "python"      "scientist"   "statistical" "techniques" 
-#[10] "tools"       "using"       "years"       "development" "job"         "knowledge"   "learning"    "machine"     "skills"     
-#[19] "solutions"   "model"       "required"    "team"        "technical"  
 
 # looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
-#install.packages("wordcloud") 
-library(wordcloud)
 freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
 wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 
+#library(qdap)
+#library(RColorBrewer)
+#library(RWeka)
 
-
-
-#Word Frequency
-#install.packages("knitr")
-#library(knitr) 
-# Sum all columns(words) to get frequency
-#words_frequency <- colSums(as.matrix(tdm)) 
-# create sort order (descending) for matrix
-#ord <- order(words_frequency, decreasing=TRUE)
-
-# get the top 20 words by frequency of appeearance
-#words_frequency[head(ord, 20)] %>% 
-#  kable()
-
-
-
-# TODO: figure out if this would be cool to have
-#findAssocs(dtm, "word",corlimit=0.80)
-#install.packages('proxy')
-#require('proxy')
-#dis=dissimilarity(tdm, method="cosine")
-
-#visualize the dissimilarity results by printing part of the big matrix
-#as.matrix(dis)[1:20, 1:20]
-#visualize the dissimilarity results as a heatmap
-#heatmap(as.matrix(dis)[1:20, 1:20])
-
-
-
-library(wordcloud)
-library(qdap)
-library(RColorBrewer)
-library(RWeka)
-
+# Bigram Bars
 BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
 tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
 
@@ -265,8 +234,6 @@ freq = sort(rowSums(as.matrix(tdm.bigram)),decreasing = TRUE)
 freq.df = data.frame(word=names(freq), freq=freq)
 head(freq.df, 20)
 
-#visualize the wordcloud   
-wordcloud(freq.df$word,freq.df$freq,max.words=100,random.order = F )
 
 #visualize the top 15 bigrams
 library(ggplot2)
@@ -274,32 +241,31 @@ ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
   geom_bar(stat = "identity") + coord_flip() +
   xlab("Bigrams") + ylab("Frequency") +
   ggtitle("Most frequent bigrams")
+### RETRIEVAL OF GRAPHS BASED ON FREQUENCY ENDS  ... ###
 
 
 
- 
- some  <- skill_data[['skill_name']]
- 
+
+#############################################################
+#### Skill Rankings DB Insertion #### 
+ skill_names  <- skill_data[['skill_name']]
  # skill hash mapped to list of companies
- #install.packages("hash")
- #library(tidyverse)
- #library(hash)
  skill_company_map <- hash()
- #skill_company_map[[skill]]<- c(state_uscf_prerating[3], list(opp_ids))
  
- for (skill in some)
+ 
+ for (skill in skill_names)
  {
-   # if jobspikr_data[['inferred_skills']]
-   whatevs<- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
-   gracce <- whatevs %>% select(has_pat, inferred_skills, company_name)
-   pattern_present <- gracce %>% filter(has_pat==TRUE) 
+   
+   tmp_frame <- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
+   tmp_frame <- tmp_frame %>% select(has_pat, inferred_skills, company_name)
+   pattern_present <- tmp_frame %>% filter(has_pat==TRUE)  # has pattern 
    companies <- pattern_present[["company_name"]]
    
    companies <- companies[!duplicated(companies)]
    skill_company_map[[skill]] <- companies
  }
 
-
+# create skill rankings frame
 skill_rankings_frame = tibble() 
 for (key in names(skill_company_map)) {
   companies <- skill_company_map[[key]]
@@ -313,6 +279,8 @@ for (key in names(skill_company_map)) {
 }
 
 skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
-skill_rankings_table
 
+# insert into DB 
+create_skill_rankings_table()
 insert_into_skill_rankings_table(skill_rankings_table)
+
