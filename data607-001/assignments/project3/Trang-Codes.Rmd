@@ -1,0 +1,92 @@
+---
+title: "Data 607 Project 3"
+author: "Teams 5"
+date: 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Load Libraries
+library(tidyr)
+library(dplyr)
+library(textdata)
+library(knitr)
+library(tidyverse)
+library(wordcloud)
+library(RColorBrewer)
+library(ggplot2)
+library(reshape2)
+library(ggthemes)
+library(png)
+```
+
+### Load the dataset
+```{r}
+job_df<- read.csv('https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv')
+
+glimpse(job_df)
+
+job_df$state[toupper(job_df$state)=="CALIFORNIA"]<-"CA"
+job_df$state[toupper(job_df$state)=="NEW YORK"]<-"NY"
+job_df$state[toupper(job_df$state)=="COLORADO"]<-"CO"
+job_df$state[toupper(job_df$state)=="MARYLAND"]<-"MD"
+job_df$state[toupper(job_df$state)=="ILLINOIS"]<-"IL"
+job_df$state[is.na(job_df$state)|job_df$state==""]<-"unknown"
+
+job_df$inferred_salary_time_unit[job_df$inferred_salary_time_unit==""]<-"unknown"
+
+##### Skill Set should be in Database
+test<-strsplit(job_df$inferred_skills, split = "\\|")
+
+skillset <-data.frame(skill=character())
+s <-length(test)
+
+for (i in 1:s){
+  for (j in 1:lengths(test[i])){
+    rows<-data.frame(skill=test[[i]][j])
+    skillset <-rbind(skillset,rows)
+  }  
+}
+```
+
+```{r}
+word_freq<- skillset %>% group_by(skill)%>%
+  summarise(wfreq=n()) 
+
+# Plots #
+ggplot(word_freq, aes(wfreq),horizontal = TRUE) + 
+  geom_histogram()
+
+ggplot(skillset,aes(skill))+
+  geom_bar()
+
+ggplot(top_n(word_freq,35), aes(x=reorder(skill,wfreq),y = wfreq)) + 
+  geom_bar(stat='identity',fill="olivedrab")+
+  coord_flip()+
+  ylab("Count")+
+  xlab("Skills")+
+  theme_tufte()+
+  ggtitle("Valued Skills in Data Science")  
+
+# Word Cloud #
+png("wordcloud.png",width = 12, height = 8,units = "in", res=300)
+par(mar=rep(0,4))
+set.seed(10142021)
+word_freq <- word_freq %>% arrange(desc(wfreq))
+
+wordcloud(word_freq$skill,freq = word_freq$wfreq,scale=c(3.5,0.25),
+          colors=brewer.pal(8,"Dark2"))
+
+wordcloud_pic <- '/Users/admin/Downloads/wordcloud.png'
+
+include_graphics(wordcloud_pic)
+```
+
+
+
+
