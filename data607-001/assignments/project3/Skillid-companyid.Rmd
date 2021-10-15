@@ -1,0 +1,222 @@
+---
+title: "Data 607 Project 3"
+author: "Leticia Salazar"
+date: "10/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Load packages
+#install.packages("stopwords")
+#install.packages("wordcloud")
+#install.packages("textdata")
+#install.packages("tidytext")
+#install.packages("tm")
+#install.packages("wesanderson")
+```
+
+setwd("~/Desktop//R4DS-main")
+
+
+```{r}
+#Load Libraries
+library(tidyr)
+library(dplyr)
+library(textdata)
+library(tidytext)
+library(stopwords)
+library(tidyverse)
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+library(wesanderson)
+```
+
+### Load the dataset
+```{r}
+job_df<- read.csv('https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv')
+
+glimpse(job_df)
+
+```
+
+
+```{r}
+job_df$state[toupper(job_df$state)=="CALIFORNIA"]<-"CA"
+job_df$state[toupper(job_df$state)=="NEW YORK"]<-"NY"
+job_df$state[toupper(job_df$state)=="COLORADO"]<-"CO"
+job_df$state[toupper(job_df$state)=="MARYLAND"]<-"MD"
+job_df$state[toupper(job_df$state)=="ILLINOIS"]<-"IL"
+job_df$state[is.na(job_df$state)|job_df$state==""]<-"unknown"
+
+job_df$inferred_salary_time_unit[job_df$inferred_salary_time_unit==""]<-"unknown"
+
+##### Skill Set should be in Database
+test<-strsplit(job_df$inferred_skills, split = "\\|")
+View(test)
+
+skillset <-data.frame(skill=character())
+s <-length(test)
+
+for (i in 1:s){
+  for (j in 1:lengths(test[i])){
+    rows<-data.frame(skill=test[[i]][j])
+    skillset <-rbind(skillset,rows)
+  }  
+}
+#############
+
+word_freq<- skillset %>% group_by(skill)%>%
+  summarise(wfreq=n()) 
+
+png("wordcloud_1.png",width = 12, height = 8,units = "in", res=300)
+par(mar=rep(0,4))
+set.seed(10142021)
+word_freq <- word_freq %>% arrange(desc(wfreq))
+
+wordcloud(word_freq$skill,freq =word_freq$wfreq,scale=c(3.5,0.25),
+          max.words = 600,colors=brewer.pal(8,"Dark2"))
+###########
+```
+
+```{r}
+##### Skills & Company for Database
+skill_company <-data.frame(skillid=character(),companyid=character())
+
+test <-job_df %>% select (company_name,inferred_skills)%>%
+    filter(inferred_skills!="")
+
+datarow<-nrow(test)
+
+for (i in 1:datarow){
+  infer_byrow <-c(skillid=strsplit(test[[i,2]], split = "\\|")) 
+  rows<-data.frame(skillid=infer_byrow,companyid=test[[i,1]])
+  skill_company <-rbind(skill_company,rows)
+}
+
+View(skill_company)
+```
+
+```{r}
+#Find if any missing values
+colSums(is.na(data_jobs))
+```
+
+
+```{r}
+#Count of Industry
+Industry <- data_jobs%>%
+  group_by(Industry)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Industry)
+```
+
+```{r}
+#Count of State
+State <- data_jobs%>%
+  group_by(State)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(State)
+```
+
+
+```{r}
+#Count of Inferred_State
+State_Inf <- data_jobs%>%
+  group_by(Inferred_State)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(State_Inf)
+```
+
+
+```{r}
+#Count of Job_Board
+Job_Board <- data_jobs%>%
+  group_by(Job_Board)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Job_Board)
+```
+
+
+```{r}
+#Count of Job_Type
+Job_Type <- data_jobs%>%
+  group_by(Job_Type)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Job_Type)
+```
+
+
+```{r}
+#Count of Salary_Offered
+Salary <- data_jobs%>%
+  group_by(Salary_Offered)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Salary)
+```
+
+
+```{r}
+#Drop columns not needed
+datasci_jobs <- data_jobs[, -c(11, 17, 19, 20, 22)]
+head(datasci_jobs)
+```
+
+
+```{r}
+#Text mining
+str(datasci_jobs)
+datasci_jobs <- as.character(datasci_jobs)
+```
+
+
+```{r}
+datasci_jobs.corpus <- Corpus(VectorSource(datasci_jobs))
+
+datasci_jobs.corpus <- datasci_jobs.corpus%>%
+  tm_map(removePunctuation)%>% ##eliminate punctuation
+  tm_map(removeNumbers)%>% #no numbers
+  tm_map(stripWhitespace)#white spaces
+
+datasci_jobs.corpus <- datasci_jobs.corpus%>%
+  tm_map(tolower)%>% ##make all words lowercase
+  tm_map(removeWords, stopwords("english"))
+
+datasci_jobs.corpus <- tm_map(datasci_jobs.corpus, removeWords, c("the", "and","for","this","that","with","will","also","i'm", "requirements", "experience"))
+
+datasci_jobs.corpus<-tm_map(datasci_jobs.corpus, stemDocument) #reduce multiple of the same core word
+```
+
+```{r}
+datasci_jobs.counts <- as.matrix(TermDocumentMatrix(datasci_jobs.corpus))
+datasci_jobs.freq <- sort(rowSums(datasci_jobs.counts), decreasing=TRUE)
+head(datasci_jobs.freq) ##what are the top words?
+```
+
+
+```{r}
+#Word Cloud
+set.seed(46) #be sure to set the seed if you want to reproduce the same again
+
+wordcloud(words = names(datasci_jobs.freq), freq = datasci_jobs.freq, scale = c(4,.3), max.words = 150, random.order = FALSE, color = wes_palette("Moonrise2"), rot.per = .7)
+```
+
+
+
+
+
+
+
+
+
