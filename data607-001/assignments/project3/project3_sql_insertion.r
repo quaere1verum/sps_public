@@ -88,10 +88,9 @@ data
 
 
 skill_rankings_create_sql <- 'CREATE TABLE `skill_rankings`
-(   
+(   `skill_frequency` int NOT NULL,
     `companyid` varchar(100) NOT NULL,
     `skill_id` varchar(100) NOT NULL,
-    `skill_rank` int NOT NULL,
      primary key( companyid, skill_id),
      foreign key(companyid) references companies(companyid),
 	  foreign key (skill_id)  references skill_types(skill_id) )'

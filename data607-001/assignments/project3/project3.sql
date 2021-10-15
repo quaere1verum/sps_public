@@ -53,7 +53,8 @@ describe companies;
 
 -- define skill rankings
 CREATE TABLE `skill_rankings`
-(   `skill_rank` int NOT NULL, -- how often the skills comes up in the job description
+(  
+	`skill_frequency` int NOT NULL, -- how often the skills comes up in the job description
     `companyid` varchar(100) NOT NULL,
     `skill_id` varchar(100) NOT NULL,
      primary key ( companyid, skill_id),

@@ -72,6 +72,7 @@ dbExecute(con,"commit;")
 # companies data is your dataframe with the same schema as companies table defined under sql
 insert_into_companies_table<- function(companies_data)
 {
+  dbExecute(con,"drop table if exists myTempTable")
   dbWriteTable(con,"myTempTable", companies_data)
   dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
   dbExecute(con,"drop table if exists myTempTable")
@@ -81,12 +82,24 @@ insert_into_companies_table<- function(companies_data)
 # same thing, schema needs to be the same
 insert_into_skill_types_table <- function(skill_data)
 {
+  dbExecute(con,"drop table if exists myTempTable")
   dbWriteTable(con,"myTempTable", skill_data)
   dbExecute(con,"insert into skill_types(skill_id, skill_name) select skill_id, skill_name from myTempTable")
   dbExecute(con,"drop table if exists myTempTable")
   dbExecute(con,"commit;")
-  
 }
+
+# same thing, schema needs to be the same
+insert_into_skill_rankings_table <- function(skill_rankings_data)
+{
+  dbExecute(con,"drop table if exists myTempTable")
+  dbWriteTable(con,"myTempTable", skill_rankings_data)
+  dbExecute(con,"insert into skill_rankings(skill_frequency, companyid, skill_id) select skill_frequency, companyid, skill_id from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+}
+
+
 
 ##### Skill Set should be in Database
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
@@ -111,6 +124,9 @@ skill_data <- tmp_frame %>% select(skill_id, skill_name)
 insert_into_skill_types_table(skill_data)
 
 #############
+
+
+
 
 
 ## RETRIEVAL OF GRAPHS BASED ON FREQUENCY STARTS...
@@ -258,3 +274,45 @@ ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
   geom_bar(stat = "identity") + coord_flip() +
   xlab("Bigrams") + ylab("Frequency") +
   ggtitle("Most frequent bigrams")
+
+
+
+ 
+ some  <- skill_data[['skill_name']]
+ 
+ # skill hash mapped to list of companies
+ #install.packages("hash")
+ #library(tidyverse)
+ #library(hash)
+ skill_company_map <- hash()
+ #skill_company_map[[skill]]<- c(state_uscf_prerating[3], list(opp_ids))
+ 
+ for (skill in some)
+ {
+   # if jobspikr_data[['inferred_skills']]
+   whatevs<- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
+   gracce <- whatevs %>% select(has_pat, inferred_skills, company_name)
+   pattern_present <- gracce %>% filter(has_pat==TRUE) 
+   companies <- pattern_present[["company_name"]]
+   
+   companies <- companies[!duplicated(companies)]
+   skill_company_map[[skill]] <- companies
+ }
+
+
+skill_rankings_frame = tibble() 
+for (key in names(skill_company_map)) {
+  companies <- skill_company_map[[key]]
+  
+  skill_tmp <- skill_data %>% filter(skill_name==key)
+  freq_tmp <- word_freq %>%filter(skill==key)
+  
+  tmp_frame <- tibble(company_name=companies, skill=key, skill_id=skill_tmp[['skill_id']], skill_frequency=freq_tmp[['wfreq']])
+  tmp_frame <- tmp_frame %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+  skill_rankings_frame <- rbind(tmp_frame, skill_rankings_frame)
+}
+
+skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
+skill_rankings_table
+
+insert_into_skill_rankings_table(skill_rankings_table)
