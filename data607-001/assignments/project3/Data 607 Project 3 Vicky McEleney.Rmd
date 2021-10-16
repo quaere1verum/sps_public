@@ -1,0 +1,372 @@
+---
+title: "Data 607 Project 3"
+author: "Leticia Salazar"
+collaborators: "Cassandra Boylan, Trang Do, Victoria McEleney, Javier Pajuelo"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### **Project – Data Science Skills**
+
+
+#### This is a project for your entire class section to work on together, since being able to work effectively on a virtual team is a key “soft skill” for data scientists. Please note especially the requirement about making a presentation during our first meetup after the project is due.
+
+#### W. Edwards Deming said, “In God we trust, all others must bring data.” **Please use data to answer the question, “Which are the most valued data science skills?”** Consider your work as an exploration; there is not necessarily a “right answer.”
+
+##### Objective: As a group ....
+
+
+##### Load Packages
+```{r}
+#Load packages
+#install.packages("stopwords")
+#install.packages("wordcloud")
+#install.packages("textdata")
+#install.packages("tidytext")
+#install.packages("tm")
+#install.packages("wesanderson")
+```
+
+
+##### Load Libraries
+```{r}
+#Load Libraries
+library(tidyr)
+library(dplyr)
+library(textdata)
+library(tidytext)
+library(stopwords)
+library(tidyverse)
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+library(wesanderson)
+library(curl)
+library(hrbrthemes)
+library(ggplot2)
+```
+
+##### Load the dataset
+```{r}
+#Original data set from 2019
+#data_jobs <- read.csv("https://query.data.world/s/fxc7dwlsq53zvac5xkrpvoe6x2un2v", header=TRUE, stringsAsFactors=FALSE, na.strings=c(""," ","NA"));
+#head(data_jobs)
+
+#Shorter data set so that it is quicker to load and work with. It is also the most recent/up-to-date job postings
+data_jobs_short <- read.csv("https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_jobspikr_10152021_merged.csv", header=TRUE, stringsAsFactors=FALSE, na.strings=c(""," ","NA"));
+```
+
+
+
+```{r}
+#Get column names
+colnames(data_jobs_short)
+```
+
+
+```{r}
+#Rename column names
+colnames(data_jobs_short) <- c("Crawl_TimeStamp", "Url", "Job_Title", "Industry", "Company_Name", "City", "State", "Country", "Inferred_City", "Inferred_State", "Inferred_Country", "Post_Date", "Job_Description", "Job_Type", "Salary_Offered", "Job_Board", "Geo", "Cursor", "Contact_Email", "Contact_PhoneNumber", "ID", "HTML_Job_Description", "Valid_Through", "Has_Expired", "Inferred_ISO3_Lang_Code", "Latest_Expiry_Check_Date", "Duplicate_Status", "Duplicate_Of", "Inferred_Department_Name", "Inferred_Department_Score", "Inferred_Job_Title", "Is_Remote", "Inferred_Salary_Currency", "Inferred_Salary_Time_Unit", "Inferred_Salary_From", "Inferred_Salary_To", "Inferred_Skills", "Inferred_Company_Type", "Inferred_Company_Type_Score", "Inferred_Seniority_Level", "Apply_Url", "Logo_Url")
+```
+
+
+```{r}
+glimpse(data_jobs_short)
+```
+
+```{r}
+summary(data_jobs_short)
+```
+
+
+```{r}
+#Find if any missing values
+colSums(is.na(data_jobs_short))
+```
+
+
+```{r}
+#Count of Industry
+Industry <- data_jobs_short%>%
+  group_by(Industry)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Industry, n = 4)
+```
+
+```{r}
+#Count of State
+State <- data_jobs_short%>%
+  group_by(State)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(State, n = 4)
+```
+
+
+```{r}
+#Count of Inferred_State to see if there's any difference with State column
+State_Inf <-data_jobs_short%>%
+  group_by(Inferred_State)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(State_Inf, n = 4)
+```
+
+
+```{r}
+#Count of Job_Board
+Job_Board <- data_jobs_short%>%
+  group_by(Job_Board)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Job_Board, n = 4)
+```
+
+```{r}
+# Bar Plot 
+data_jobs_short %>% 
+ggplot(aes(x = Job_Type, fill = Job_Board)) +
+  geom_bar()
+```
+
+
+```{r}
+#Count of Job_Type
+Job_Type <- data_jobs_short%>%
+  group_by(Job_Type)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Job_Type, n = 4)
+```
+
+
+```{r}
+#Count of Is_Remote
+Is_Remote <- data_jobs_short%>%
+  group_by(Is_Remote)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Is_Remote, n = 4)
+```
+
+
+```{r}
+#Count of Inferred_Salary_Time_Unit
+Salary_Unit <- data_jobs_short%>%
+  group_by(Inferred_Salary_Time_Unit)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Salary_Unit, n = 4)
+```
+
+```{r}
+# Bar Plot 
+data_jobs_short %>% 
+ggplot(aes(x = Inferred_Salary_Time_Unit, fill = Job_Type)) +
+  geom_bar()
+```
+
+
+
+```{r}
+#Count of Inferred_Seniority_Level
+Seniority_Level <- data_jobs_short%>%
+  group_by(Inferred_Seniority_Level)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Seniority_Level, n = 4)
+```
+
+
+```{r}
+#Count of Inferred_Skills
+Skills <- data_jobs_short%>%
+  group_by(Inferred_Skills)%>%
+  summarise(num=n())%>%
+  arrange(desc(num))
+head(Skills)
+```
+
+
+
+##### In this case I decided that columns, Inferred_Country, Salary_Offered, Geo, Contact_Email, Contact_PhoneNumber, HTML_Job_Description, Valid_Through, Inferred_ISO3_Lang_Code, Duplicate_Status, Duplicate_Of, Inferred_Department_Score, Apply_Url and Logo_Url were not needed.
+
+###### Salary_Offered is split into three columns Inferred_Salary_Time_Unit, Inferred_Salary_From and Inferred_Salary_To, therefore we didn't need that column.
+```{r}
+#Drop columns not needed
+datasci_jobs <- data_jobs_short[, -c(11, 15, 17, 19, 20, 22, 23, 25, 27, 28, 30, 41, 42)]
+```
+
+```{r}
+#Find if any missing values
+colSums(is.na(datasci_jobs))
+```
+
+
+```{r}
+#Replace NA's by subsetting Industry column with Job_Type column
+
+datasci_jobs$Industry[is.na(datasci_jobs$Industry)] <- datasci_jobs$Job_Type[is.na(datasci_jobs$Industry)]
+datasci_jobs$City[is.na(datasci_jobs$City)] <- datasci_jobs$State[is.na(datasci_jobs$City)]
+```
+
+
+***
+```{r}
+#Get coloumn
+inferred_skills <- datasci_jobs$Inferred_Skills
+
+#Remove "|" from the Inferred_Skills column and replace with an empty space
+skills <- unlist(str_replace_all(inferred_skills, pattern = "\\|", replacement = "  ")) #replacement = "," brings in another set of word frequencies
+head(skills, n = 1)
+```
+
+
+```{r}
+#Text mining for skills column only
+str(skills)
+datasci_jobs2 <- as.character(skills)
+
+skills.corpus <- Corpus(VectorSource(skills))
+
+skills.corpus <- skills.corpus%>%
+  tm_map(removePunctuation)%>% #eliminate punctuation
+  tm_map(removeNumbers)%>% #no numbers
+  tm_map(stripWhitespace) # no white spaces
+
+skills.corpus <- skills.corpus%>%
+  tm_map(tolower)%>% ##make all words lowercase
+  tm_map(removeWords, stopwords("english"))
+
+skills.corpus <- tm_map(skills.corpus, removeWords, c('experience', 'following', 'candidates', 'big', 'background', 'characteristics', 'data', 'team', 'strong', 'project', 'solution', 'technology', 'science', 'model', 'knowledge','skill', 'work', 'build', 'will', 'knowledge', 'application','gender', 'identity', 'equal', 'opportunity','related','field', 'without', 'regard', 'national', 'origin', 'religion', 'sex', 'race', 'color', 'veteran', 'status','sexual', 'orientation','opportunity', 'employer', 'qualified','applicant','skills', 'job', 'summary', 'advanced', 'system', 'applicants', 'receive', 'large', 'best', 'practice', 'problem', 'processing', 'affirmative', 'action', 'employment', 'consideration', 'receive', 'united', 'state', 'working', 'saying', 'preferred', 'qualification', 'disability', 'protected', 'structured', 'unstructured', 'problems', 'technical', 'internal', 'external', 'non', 'subject', 'matter', 'please', 'apply', 'using', 'reasonable', 'accomodation', 'join', 'us', 'tools', 'individuals', 'disabilities', 'type', 'full', 'wide', 'range', 'duties', 'responsibilities', 'stakeholder', 'oral', 'written', 'ideal', 'candidate', 'ability', 'qualifications', 'well', 'must', 'able', 'unit', 'member', 'posted', 'today', 'service', 'clearance', 'days', 'ago', 'high', 'quality', 'level', 'every', 'use', 'case', 'additional', 'and', 'or', 'hour', 'they', 'the', 'that', 'well', 'also', 'for', 'im', 'requirements', 'like', 'can', 'help', 'team', 'age', 'expertise', 'require', 'cloud', 'look', 'career', 'scientist', 'learn'))
+
+skills.corpus<-tm_map(skills.corpus, stemDocument) #reduce multiple of the same core word
+```
+
+
+```{r}
+#Get frequency of words
+skills.counts <- as.matrix(TermDocumentMatrix(skills.corpus))
+skills.freq <- sort(rowSums(skills.counts), decreasing=TRUE)
+head(skills.freq) ##what are the top words? 
+```
+
+
+```{r}
+#Word Cloud for skills column
+set.seed(374) #be sure to set the seed if you want to reproduce the same again
+
+wordcloud(words = names(skills.freq), freq = skills.freq, scale = c(3,.3), max.words = 150, random.order = FALSE, color = wes_palette("Moonrise2"), rot.per = .5)
+```
+
+
+***
+```{r}
+#Text mining for whole dataset
+str(datasci_jobs)
+datasci_jobs2 <- as.character(datasci_jobs)
+```
+
+
+```{r}
+datasci_jobs2.corpus <- Corpus(VectorSource(datasci_jobs2))
+
+datasci_jobs2.corpus <- datasci_jobs2.corpus%>%
+  tm_map(removePunctuation)%>% #eliminate punctuation
+  tm_map(removeNumbers)%>% #no numbers
+  tm_map(stripWhitespace) # no white spaces
+
+datasci_jobs2.corpus <- datasci_jobs2.corpus%>%
+  tm_map(tolower)%>% ##make all words lowercase
+  tm_map(removeWords, stopwords("english"))
+
+datasci_jobs2.corpus <- tm_map(datasci_jobs2.corpus, removeWords, c('experience', 'following', 'candidates', 'big', 'background','developing', 'characteristics', 'data', 'team', 'strong', 'project', 'solution', 'technology', 'science', 'model', 'knowledge','skill', 'work', 'build', 'will', 'knowledge', 'application','gender', 'identity', 'equal', 'opportunity','related','field', 'without', 'regard', 'national', 'origin', 'religion', 'sex', 'race', 'color', 'veteran', 'status','sexual', 'orientation','opportunity', 'employer', 'qualified','applicant','skills', 'job', 'summary', 'advanced', 'system', 'applicants', 'receive', 'large', 'best', 'practice', 'problem', 'processing', 'affirmative', 'action', 'employment', 'consideration', 'receive', 'united', 'state', 'working', 'saying', 'preferred', 'qualification', 'disability', 'protected', 'structured', 'unstructured', 'problems', 'technical', 'internal', 'external', 'non', 'subject', 'matter', 'please', 'apply', 'using', 'dental', 'reasonable', 'accomodation', 'join', 'us', 'tools', 'individuals', 'disabilities', 'type', 'full', 'wide', 'range', 'duties', 'responsibilities', 'stakeholder', 'oral', 'written', 'ideal', 'candidate', 'ability', 'qualifications', 'well', 'must', 'able', 'unit', 'member', 'posted', 'today', 'service', 'clearance', 'days', 'ago', 'high', 'quality', 'level', 'every', 'use', 'case', 'additional', 'and', 'or', 'will', 'hour', 'they', 'the', 'that', 'well', 'also', 'for', 'im', 'requirements', 'like', 'can', 'help', 'team', 'age', 'expertise', 'require', 'cloud', 'look', 'career', 'scientist', 'learn'))
+
+datasci_jobs2.corpus<-tm_map(datasci_jobs2.corpus, stemDocument) #reduce multiple of the same core word
+```
+
+```{r}
+datasci_jobs2.counts <- as.matrix(TermDocumentMatrix(datasci_jobs2.corpus))
+datasci_jobs2.freq <- sort(rowSums(datasci_jobs2.counts), decreasing=TRUE)
+head(datasci_jobs2.freq) ##what are the top words?
+```
+
+
+```{r}
+#Word Cloud for entire data set
+set.seed(837) #be sure to set the seed if you want to reproduce the same again
+
+wordcloud(words = names(datasci_jobs2.freq), freq = datasci_jobs2.freq, scale = c(3,.3), max.words = 150, random.order = FALSE, color = wes_palette("Moonrise2"), rot.per = .5)
+```
+
+## What are the most highly paid data science skills?
+```{r}
+#Extract skills and salary coloumn
+salary_skills <- datasci_jobs %>%  
+  select(Inferred_Skills, Inferred_Salary_Currency, Inferred_Salary_Time_Unit, Inferred_Salary_From, Inferred_Salary_To)
+
+#Filter out Inferred_Salary_Currency = 'INR' or 'blank'
+salary_skills <- filter(salary_skills, Inferred_Salary_Currency == 'USD')
+
+#Create Inferred_Salary_Median
+salary_skills <- mutate(salary_skills, Inferred_Salary_Median = ((Inferred_Salary_To - Inferred_Salary_From) / 2) + Inferred_Salary_From)
+
+#Filter out Inferred_Salary_Median = '0'
+salary_skills <- filter(salary_skills, Inferred_Salary_Median > 0)
+
+#Filter out Yearly Salaries
+salary_skills_yearly <- filter(salary_skills, Inferred_Salary_Time_Unit == 'yearly')
+salary_skills_yearly <- mutate(salary_skills_yearly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 1)
+#Drop annual salary = $500 (assume bad data)
+salary_skills_yearly <- filter(salary_skills_yearly, Inferred_Salary_Median_Annual > 500)
+
+#Annualize hourly salaries
+salary_skills_hourly <- filter(salary_skills, Inferred_Salary_Time_Unit == 'hourly')
+salary_skills_hourly <- mutate(salary_skills_hourly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 2080)
+
+#Annualize monthly salaries
+salary_skills_monthly <- filter(salary_skills, Inferred_Salary_Time_Unit == 'monthly')
+salary_skills_monthly <- mutate(salary_skills_monthly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 12)
+
+#Combine yearly, hourly, & monthly tables
+salary_skills <- bind_rows(salary_skills_yearly, salary_skills_hourly, salary_skills_monthly)
+
+#Separate skills from the Inferred_Skills column into several rows
+salary_skills_long <- separate_rows(salary_skills, Inferred_Skills, sep = "\\|")
+
+#What is the frequency of Inferred_Skills?
+Skills_freq <- count(salary_skills_long, Inferred_Skills)
+Skills_freq <- arrange(Skills_freq, desc(n))
+
+#Merge Inferred_Salary_Median into Skills_freq
+distinct_salary_skills <- distinct(salary_skills_long, Inferred_Skills, .keep_all = TRUE)
+distinct_salary_skills <- select(distinct_salary_skills, Inferred_Skills, Inferred_Salary_Median_Annual)
+
+Skills_freq <- left_join(Skills_freq, distinct_salary_skills, by = 'Inferred_Skills')
+Skills_freq <- mutate(Skills_freq, weighted_sal = n * Inferred_Salary_Median_Annual) #Assume frequency of skill gives weight to Salary
+Skills_freq <- arrange(Skills_freq, desc(weighted_sal))
+Skills_freq
+```
+
+## Plot the top 20 Highly Paid Data Science Skills
+```{r}
+Skills_freq_top_sal <- slice(Skills_freq, 1:20)
+ggplot(Skills_freq_top_sal, aes(Inferred_Skills, weighted_sal))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
