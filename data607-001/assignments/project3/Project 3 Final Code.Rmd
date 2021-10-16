@@ -68,11 +68,6 @@ inferred_skills <- get_inferred_skills(jobspikr_data)
 
 
 ```{r}
-# will use this as uniq_id from the frame for companies
-#uniq_id
-#d578cbc1ebd47ee77eba9e981f3c2582
-# uniq_id is not good since there can be multiple job postings for the company
-
 library(digest)
 
 #a<-digest("key_a", algo='xxhash32')
@@ -87,6 +82,12 @@ companies <- tmp_frame %>% select(companyid, company_name)
 
 # table ready for insertion
 companies_table <- distinct(companies, companyid, company_name)
+
+#install.packages("DBI")
+library(DBI)
+
+#install.packages("RMySQL")
+library(RMySQL)
 
 # trying tmp tables
 dbWriteTable(con,"myTempTable", companies_table)
@@ -139,7 +140,7 @@ insert_into_skill_types_table(skill_data)
 
 # RETRIEVAL OF GRAPHS BASED ON FREQUENCY
 ```{r}
-# Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions
+# Looks like job description has a lot of things mixed in it. Requirements, disclaimers, company culture descriptions
 # character array 
 job_description_data <- jobspikr_data[['job_description']]
 
@@ -288,6 +289,64 @@ ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
   geom_bar(stat = "identity") + coord_flip() +
   xlab("Bigrams") + ylab("Frequency") +
   ggtitle("Most Frequent Bigrams")
+```
+
+
+## What are the top requested highly paid data science skills?
+```{r}
+#Extract skills and salary coloumn
+salary_skills <- jobspikr_data %>%  
+  select(inferred_skills, inferred_salary_currency, inferred_salary_time_unit, inferred_salary_from, inferred_salary_to)
+
+#Filter out inferred_salary_currency = 'INR' or 'blank'
+salary_skills <- filter(salary_skills, inferred_salary_currency == 'USD')
+
+#Create Inferred_Salary_Median
+salary_skills <- mutate(salary_skills, Inferred_Salary_Median = ((inferred_salary_to - inferred_salary_from) / 2) + inferred_salary_from)
+
+#Filter out Inferred_Salary_Median = '0'
+salary_skills <- filter(salary_skills, Inferred_Salary_Median > 0)
+
+#Filter out Yearly Salaries
+salary_skills_yearly <- filter(salary_skills, inferred_salary_time_unit == 'yearly')
+salary_skills_yearly <- mutate(salary_skills_yearly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 1)
+#Drop annual salary = $500 (assume bad data)
+salary_skills_yearly <- filter(salary_skills_yearly, Inferred_Salary_Median_Annual > 500)
+
+#Annualize hourly salaries
+salary_skills_hourly <- filter(salary_skills, inferred_salary_time_unit == 'hourly')
+salary_skills_hourly <- mutate(salary_skills_hourly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 2080)
+
+#Annualize monthly salaries
+salary_skills_monthly <- filter(salary_skills, inferred_salary_time_unit == 'monthly')
+salary_skills_monthly <- mutate(salary_skills_monthly, Inferred_Salary_Median_Annual = Inferred_Salary_Median * 12)
+
+#Combine yearly, hourly, & monthly tables
+salary_skills <- bind_rows(salary_skills_yearly, salary_skills_hourly, salary_skills_monthly)
+
+#Separate skills from the inferred_skills column into several rows
+salary_skills_long <- separate_rows(salary_skills, inferred_skills, sep = "\\|")
+
+#What is the frequency of inferred_skills?
+Skills_freq <- count(salary_skills_long, inferred_skills)
+Skills_freq <- arrange(Skills_freq, desc(n))
+
+#Merge Inferred_Salary_Median into Skills_freq
+distinct_salary_skills <- distinct(salary_skills_long, inferred_skills, .keep_all = TRUE)
+distinct_salary_skills <- select(distinct_salary_skills, inferred_skills, Inferred_Salary_Median_Annual)
+
+Skills_freq <- left_join(Skills_freq, distinct_salary_skills, by = 'inferred_skills')
+Skills_freq <- mutate(Skills_freq, weighted_sal = n * Inferred_Salary_Median_Annual) #Assume frequency of skill gives weight to Salary
+Skills_freq <- arrange(Skills_freq, desc(weighted_sal))
+Skills_freq
+```
+
+## Plot the top 20 Highly Paid Data Science Skills
+```{r}
+Skills_freq_top_sal <- slice(Skills_freq, 1:20)
+ggplot(Skills_freq_top_sal, aes(inferred_skills, weighted_sal))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
 ```
 
 ### Indeed HTML: Scrapping data from Indeed Website
