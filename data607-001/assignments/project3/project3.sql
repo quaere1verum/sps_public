@@ -52,8 +52,9 @@ show full columns from companies;
 describe companies;
 
 -- define skill rankings
-CREATE TABLE `skill_rankings`
-(   `skill_rank` int NOT NULL, -- how often the skills comes up in the job description
+/**CREATE TABLE `skill_rankings`
+(  
+	`skill_frequency` int NOT NULL, -- how often the skills comes up in the job description
     `companyid` varchar(100) NOT NULL,
     `skill_id` varchar(100) NOT NULL,
      primary key ( companyid, skill_id),
@@ -63,5 +64,5 @@ CREATE TABLE `skill_rankings`
 		references skill_types(skill_id) );
 
 select * from skill_rankings;
-   
+ **/  
 
