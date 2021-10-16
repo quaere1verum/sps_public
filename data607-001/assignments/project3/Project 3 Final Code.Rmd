@@ -1,0 +1,400 @@
+---
+title: "Project 3"
+authors and collaborators: "Cassandra Boylan, Trang Do, Victoria McEleney, Javier Pajuelo and Leticia Salazar"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### **Project – Data Science Skills**
+
+
+#### This is a project for your entire class section to work on together, since being able to work effectively on a virtual team is a key “soft skill” for data scientists. Please note especially the requirement about making a presentation during our first meetup after the project is due.
+
+##### W. Edwards Deming said, “In God we trust, all others must bring data.” **Please use data to answer the question, “Which are the most valued data science skills?”** Consider your work as an exploration; there is not necessarily a “right answer.”
+
+#### Objective: As a group our we worked on answering the question "Which are the most valued data science skills?" To best answer this question we looked into a dataset from [Data.World](https://data.world/jobspikr/10000-data-scientist-job-postings-from-the-usa/workspace/file?filename=data_scientist_united_states_job_postings_jobspikr.csv] and a downloaded HTML files from Indeed [https://www.indeed.com/jobs?l=New%20York%20State&vjk=ae3c34627b58db77) and from [Indeed.com](https://www.indeed.com/jobs?q=data%20scientist&start=). {Insert more for objective}
+
+
+# We install our libraries
+```{r}
+library(tidyverse)
+library(curl)
+#install.packages("tm") # if not already installed
+library(tm)
+
+load_csv_from_url <- function(url_path)
+{
+  tmp <- tempfile()
+  curl_download(url_path, tmp)
+  read_csv(tmp)
+}
+```
+
+
+# Loading the data from GitHub
+```{r}
+jobspikr_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_united_states_job_postings_jobspikr.csv'
+
+jobspikr_small_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_jobspikr_10152021_merged.csv'
+
+
+jobspikr_data <- load_csv_from_url(jobspikr_small_url)
+```
+
+
+#Tidy
+```{r}
+#Getting inferred_skills column from dataset
+get_inferred_skills <- function(jobspikr_data)
+{
+  inferred_skills <- jobspikr_data[['inferred_skills']]
+  inferred_skills <- strsplit(inferred_skills, "\\|")
+  skills <- c()
+  for(inferred_skill in inferred_skills){
+    skills <-c(skills, inferred_skill)
+  }
+  # remove duplicates
+  return(skills[!duplicated(skills)])
+}
+
+inferred_skills <- get_inferred_skills(jobspikr_data)
+```
+
+
+```{r}
+# will use this as uniq_id from the frame for companies
+#uniq_id
+#d578cbc1ebd47ee77eba9e981f3c2582
+# uniq_id is not good since there can be multiple job postings for the company
+
+library(digest)
+
+#a<-digest("key_a", algo='xxhash32')
+#[1] "4da5b0f8"
+#companies_table <- jobspikr_data %>% select(digest(jobspikr_data[[company_name]], algo='xxhash32'), company_name)
+
+#tmp_frame <- jobspikr_data %>% mutate(companyid=lapply(jobspikr_data$company_name, function(x) {digest(x, algo="md5", serialize = F)}))
+
+tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+
+companies <- tmp_frame %>% select(companyid, company_name)
+
+# table ready for insertion
+companies_table <- distinct(companies, companyid, company_name)
+
+# trying tmp tables
+dbWriteTable(con,"myTempTable", companies_table)
+dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
+dbExecute(con,"drop table if exists myTempTable")
+dbExecute(con,"commit;")
+
+# companies data is your dataframe with the same schema as companies table defined under sql
+insert_into_companies_table<- function(companies_data)
+{
+  dbWriteTable(con,"myTempTable", companies_data)
+  dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+}
+
+# same thing, schema needs to be the same
+insert_into_skill_types_table <- function(skill_data)
+{
+  dbWriteTable(con,"myTempTable", skill_data)
+  dbExecute(con,"insert into skill_types(skill_id, skill_name) select skill_id, skill_name from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+  
+}
+
+##### Skill Set should be in Database
+test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
+skillset <-data.frame(skill=character())
+s <-length(test)
+
+for (i in 1:s){
+  for (j in 1:lengths(test[i])){
+    rows<-data.frame(skill=test[[i]][j])
+    skillset <-rbind(skillset,rows)
+  }  
+}
+
+word_freq<- skillset %>% group_by(skill)%>%   summarise(wfreq=n()) 
+
+# drop skill names that are NA doesn't make sense
+word_freq <- word_freq %>% drop_na() 
+tmp_frame <- word_freq %>% mutate(skill_id=unlist(lapply(skill, function(x) {digest(x, algo="md5", serialize = F)})), skill_name=skill)
+
+# table ready for insertion
+skill_data <- tmp_frame %>% select(skill_id, skill_name)
+insert_into_skill_types_table(skill_data)
+```
+
+
+# RETRIEVAL OF GRAPHS BASED ON FREQUENCY
+```{r}
+# Looks like job description has a lot of things mixed in it. Requirememnts, disclaimers, company culture descriptions
+# character array 
+job_description_data <- jobspikr_data[['job_description']]
+
+#data <- "hello , hllo?"
+data<- job_description_data
+data <- jobspikr_data[['inferred_skills']]
+
+# what happens if we pass data without | and instead splitted data
+inferred_skills <- jobspikr_data[['inferred_skills']]
+inferred_skills <- strsplit(inferred_skills, "\\|")
+data <- inferred_skills
+
+#put the data into a corpus for text processing
+text_corpus <- (VectorSource(data))
+text_corpus <- Corpus(text_corpus)
+summary(text_corpus)
+
+# idx 5 assume to be present, but it aint
+#idx<-1
+#to see the text and examine the corpus
+text_corpus[[5]]$content
+for (i in 1:5) print (text_corpus[[i]]$content)
+
+
+
+##Tokenization: Split a text into single word terms called "unigrams" 
+text_corpus_clean<-Boost_tokenizer(text_corpus)
+#text_corpus_clean[[1]]$content
+
+
+
+
+#Example in R: by using tm package
+#Normalization: lowercase the words and remove punctuation and numbers
+text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
+text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
+text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
+#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, c("the", "and", stopwords("english")))
+text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
+
+
+
+
+##Remove stopwords and custom stopwords
+#text_corpus_clean <- c(stopwords('english'), "a", "b") gi
+stop_words <- c(stopwords('english'), "a", "b") 
+
+##Remove more stop words
+#myStopwords <- c() # some set defined by myself based on particular data
+#myStopwords <- setdiff(myStopwords, c("d", "e")) 
+#text_corpus_clean <- tm_map(myCorpus, removeWords, myStopwords)
+text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
+
+# requires new library... install.packages('SnowballC') I think it aims to keep stem words only.
+#text_corpus_clean <- tm_map(text_corpus_clean, stemDocument, language = "english")
+#writeLines(head(strwrap(text_corpus_clean[[2]]), 15))
+
+# adding more words to remove
+#stop_words <- c("science", "will", "work")
+#text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
+
+
+tdm <- TermDocumentMatrix(text_corpus_clean) #or 
+dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, Inf)))
+inspect(tdm)
+
+# TODO: care about bounds ... can't be anything...
+
+#inspect part of the term-document matrix
+inspect(tdm[1:10, 1:50])
+
+#inspect(review_dtm[500:505, 500:505])
+
+
+#Frequent terms that occur between 30 and 50 times in the corpus
+frequent_terms <- findFreqTerms (tdm,30,50) 
+
+#findFreqTerms (tdm,200, 1000) 
+#[1] "ability"     "analysis"    "analytics"   "business"    "models"      "python"      "scientist"   "statistical" "techniques" 
+#[10] "tools"       "using"       "years"       "development" "job"         "knowledge"   "learning"    "machine"     "skills"     
+#[19] "solutions"   "model"       "required"    "team"        "technical"  
+```
+
+
+```{r}
+# looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
+#install.packages("wordcloud") 
+library(wordcloud)
+freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
+```
+
+
+```{r}
+#Word Frequency
+#install.packages("knitr")
+#library(knitr) 
+# Sum all columns(words) to get frequency
+#words_frequency <- colSums(as.matrix(tdm)) 
+# create sort order (descending) for matrix
+#ord <- order(words_frequency, decreasing=TRUE)
+
+# get the top 20 words by frequency of appeearance
+#words_frequency[head(ord, 20)] %>% 
+#  kable()
+
+
+
+# TODO: figure out if this would be cool to have
+#findAssocs(dtm, "word",corlimit=0.80)
+#install.packages('proxy')
+#require('proxy')
+#dis=dissimilarity(tdm, method="cosine")
+
+#visualize the dissimilarity results by printing part of the big matrix
+#as.matrix(dis)[1:20, 1:20]
+#visualize the dissimilarity results as a heatmap
+#heatmap(as.matrix(dis)[1:20, 1:20])
+```
+
+
+```{r}
+library(wordcloud)
+library(qdap)
+library(RColorBrewer)
+library(RWeka)
+
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
+
+##Extract the frequency of each bigram and analyse the twenty most frequent ones.
+freq = sort(rowSums(as.matrix(tdm.bigram)),decreasing = TRUE)
+freq.df = data.frame(word=names(freq), freq=freq)
+head(freq.df, 20)
+
+#visualize the wordcloud   
+wordcloud(freq.df$word,freq.df$freq,max.words=100,random.order = F )
+```
+
+
+
+```{r}
+#visualize the top 15 bigrams
+library(ggplot2)
+ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
+  geom_bar(stat = "identity") + coord_flip() +
+  xlab("Bigrams") + ylab("Frequency") +
+  ggtitle("Most Frequent Bigrams")
+```
+
+
+
+### Indeed HTML:
+
+```{r library}
+library(rvest)
+library(dplyr)
+library(tidyverse)
+library(xml2)
+library(stringr)
+jobs.data<- data.frame(source=character(),
+                job.title=character(),
+                company.name=character(),
+                location=character(),
+                job.salary=double(),
+                job.description=character())
+```
+
+
+```{r Scrapping-Indeed}
+Indeed_data<-data.frame(job.title=character(),
+                company.name=character(),
+                location=character(),
+                job.description=character(),
+                result.content=character(),
+                job.seen.beacon=character(),
+                job.id=character())
+pagenumber <- 0
+for (i in 0:100) {
+    temp = as.character(i*10)
+    link <- "https://www.indeed.com/jobs?q=data%20scientist&start=" 
+    link <- paste(link,temp,sep="")
+    print(link)
+    page <- read_html(link)
+ 
+    jobcards<-page %>%html_node(xpath='//*[@id="mosaic-provider-jobcards"]') %>%
+                  html_children()
+    getdetailjob <- xml_attrs(jobcards)
+      
+    jobid<-data.frame(job.id=getdetailjob[[1]][1])
+                             
+    for (j in 2:(length(getdetailjob)-1)){
+      tempv <- getdetailjob[[j]][1]
+      if (str_detect(tempv,'job_|sj_')) {
+        jobid <-rbind(jobid,getdetailjob[[j]][1])
+       }  
+    }  
+    
+    #View(jobid)  
+   tempdf<-data.frame(job.title=trimws(page %>% 
+                            html_nodes(".jobTitle-color-purple > span")  %>% 
+                            html_text()),
+                     company.name=trimws(page %>% 
+                            html_nodes(".companyName")  %>% 
+                            html_text()),
+                     location=trimws(page %>% 
+                            html_nodes(".companyLocation") %>%
+                            html_text()),
+                     job.description=trimws(page %>% html_nodes(".job-snippet") %>%
+                            html_text()),
+                     job.seen.beacon=trimws(page %>%html_nodes(".job_seen_beacon")%>%
+                            html_text())
+                    )
+  
+   pagenumber = pagenumber + nrow(tempdf)
+   print(i)
+   tempdf <- cbind(tempdf,jobid)
+   Indeed_data <- rbind(Indeed_data, tempdf)
+}
+Indeed_data<-Indeed_data %>%
+  mutate(location.type="")
+Indeed_data$location.type= ifelse (str_detect(Indeed_data$location,"Remote")==TRUE,"Remote", "" )
+Indeed_data$location<-str_replace(Indeed_data$location,"Remote","")
+```
+
+
+```{r}
+View(Indeed_data)    
+write.csv(Indeed_data,"~/Desktop/Indeed_data.csv")
+```
+
+
+{We can add a wordcloud for the indeed file}
+
+#### Conclusion: {brief conclusion}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
