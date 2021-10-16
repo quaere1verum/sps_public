@@ -468,8 +468,62 @@ wordcloud_pic <- '/Users/admin/Downloads/wordcloud.png'
 include_graphics(wordcloud_pic)
 ```
 
-
 {We can add a wordcloud for the indeed file}
+
+```{r, out.width="100%",fig.align='center'}
+library(tidyr)
+library(dplyr)
+library(textdata)
+library(knitr)
+library(tidyverse)
+library(wordcloud)
+library(RColorBrewer)
+library(ggplot2)
+library(reshape2)
+library(ggthemes)
+library(png)
+library(stringr)
+
+csvfile <- "https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/csv/Indeed_data.csv"
+Indeed <- read.csv(csvfile)
+
+Indeed <-Indeed %>% slice_max(Indeed$job.description, n = 300)
+
+Indeed$job.description<-str_replace_all(Indeed$job.description, "\\n", " and ")
+Indeed$job.description<-str_replace_all(Indeed$job.description,"\\.","")
+Indeed$job.description<-str_replace_all(Indeed$job.description,":","") 
+Indeed$job.description<-str_replace_all(Indeed$job.description,"You will","") 
+Indeed$job.description<-str_replace_all(Indeed$job.description,"You'll","") 
+Indeed$job.description<-gsub("[…]","",Indeed$job.description)
+
+words<-data.frame(w=character())
+words<-strsplit(Indeed$job.description,split = "and|,")
+
+skillset <-data.frame(skill=character())
+s <-length(words)
+
+for (i in 1:s){
+  for (j in 1:lengths(words[i])){
+    rows<-data.frame(skill=str_trim(words[[i]][j]))
+    skillset <-rbind(skillset,rows)
+  }  
+}
+
+word_freq<- skillset %>% group_by(skill)%>%
+  summarise(wfreq=n()) 
+
+png("Indeed_wordcloud.png",width = 12, height = 8,units = "in", res=300)
+par(mar=rep(0,4))
+set.seed(10142021)
+word_freq <- word_freq %>% arrange(desc(wfreq))
+
+wordcloud(word_freq$skill,freq = word_freq$wfreq,scale=c(3.5,0.25),
+          colors=brewer.pal(8,"Dark2"))
+
+wordcloud_pic <- '/Users/admin/Desktop/DATA607/Project3/Indeed_wordcloud.png'
+
+knitr::include_graphics(wordcloud_pic)
+```
 
 #### Conclusion: {brief conclusion}
 
