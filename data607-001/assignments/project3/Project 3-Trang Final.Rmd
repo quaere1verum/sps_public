@@ -1,0 +1,139 @@
+---
+title: "Data 607 Project 3"
+author: "Teams 5"
+date: "null"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#Load Libraries
+library(tidyr)
+library(dplyr)
+library(textdata)
+library(knitr)
+library(tidyverse)
+library(wordcloud)
+library(RColorBrewer)
+library(ggplot2)
+library(reshape2)
+library(ggthemes)
+library(png)
+```
+
+### Load the dataset
+```{r}
+job_df<- read.csv('https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv')
+
+glimpse(job_df)
+
+job_df$state[toupper(job_df$state)=="CALIFORNIA"]<-"CA"
+job_df$state[toupper(job_df$state)=="NEW YORK"]<-"NY"
+job_df$state[toupper(job_df$state)=="COLORADO"]<-"CO"
+job_df$state[toupper(job_df$state)=="MARYLAND"]<-"MD"
+job_df$state[toupper(job_df$state)=="ILLINOIS"]<-"IL"
+job_df$state[is.na(job_df$state)|job_df$state==""]<-"unknown"
+
+job_df$inferred_salary_time_unit[job_df$inferred_salary_time_unit==""]<-"unknown"
+```
+
+### Skill Set/Skill Company should be in Database
+```{r}
+test<-strsplit(job_df$inferred_skills, split = "\\|")
+
+skillset <-data.frame(skill=character())
+s <-length(test)
+
+for (i in 1:s){
+  for (j in 1:lengths(test[i])){
+    rows<-data.frame(skill=test[[i]][j])
+    skillset <-rbind(skillset,rows)
+  }  
+}
+
+skill_company <-data.frame(skillid=character(),companyid=character(),state=character())
+
+test <-job_df %>% select (company_name,inferred_skills,state)%>%
+    filter(inferred_skills!="")
+
+datarow<-nrow(test)
+
+for (i in 1:datarow){
+  infer_byrow <-c(skillid=strsplit(test[[i,2]], split = "\\|")) 
+  rows<-data.frame(skillid=infer_byrow,companyid=test[[i,1]],state=test[[i,3]])
+  skill_company <-rbind(skill_company,rows)
+}
+
+```
+
+### lm function
+```{r}
+##### lm Function
+
+company_state <- skill_company %>% select(companyid,state)%>%
+  group_by(companyid,state) %>%
+  summarise(skill_count=n())  
+
+company_state <- company_state %>% mutate(ratio= skill_count/sum(skill_count))
+
+ggplot(company_state %>% filter (state %in% c("CA","NY","TX","NE","FL","NJ","MA")) , aes(sample=skill_count))+
+  stat_qq(aes(color =state))+
+  stat_qq_line(aes(color = state))+
+  facet_grid(~state)
+
+lm_company_state <- lm(ratio~state,data=company_state)
+summary(lm_company_state)
+
+lmplot<- company_state %>% filter (state %in% c("CA","NY","TX","NE","FL","NJ","MA"))
+        
+ggplot(data = lmplot, aes(x = skill_count, y = ratio)) +
+  geom_jitter() +
+  geom_smooth(method = "lm")+
+  facet_grid(~state)+
+  xlab("Skills")+
+  ylab("Ration")+
+  theme(axis.text.x = element_text(size=5),
+        axis.text.y = element_text(size=5),
+        axis.title.x = element_text(size = 8),
+        axis.title.y = element_text(size = 8))
+```
+### Plots
+```{r}
+word_freq<- skillset %>% group_by(skill)%>%
+  summarise(wfreq=n()) 
+
+# Plots #
+ggplot(word_freq, aes(wfreq),horizontal = TRUE) + 
+  geom_histogram()
+
+ggplot(skillset,aes(skill))+
+  geom_bar()
+
+ggplot(top_n(word_freq,35), aes(x=reorder(skill,wfreq),y = wfreq)) + 
+  geom_bar(stat='identity',fill="olivedrab")+
+  coord_flip()+
+  ylab("Count")+
+  xlab("Skills")+
+  theme_tufte()+
+  ggtitle("Valued Skills in Data Science")  
+
+# Word Cloud #
+png("wordcloud.png",width = 12, height = 8,units = "in", res=300)
+par(mar=rep(0,4))
+set.seed(10142021)
+word_freq <- word_freq %>% arrange(desc(wfreq))
+
+wordcloud(word_freq$skill,freq = word_freq$wfreq,scale=c(3.5,0.25),
+          colors=brewer.pal(8,"Dark2"))
+
+wordcloud_pic <- '/Users/admin/Downloads/wordcloud.png'
+
+include_graphics(wordcloud_pic)
+```
+
