@@ -111,10 +111,16 @@ library(tidyverse)
 
 
 # Create connection to DB 
-con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
+#con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
 
 # Set global local_infile=true;
-dbSendQuery(con, "set global local_infile=true")
+#dbSendQuery(con, "set global local_infile=true")
+db <- 'project3'  #provide the name of your db
+host_db <- 'localhost'
+db_port <- '5432'
+db_user <- 'postgres' 
+db_password <- 'data607'
+con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password) 
 
 # Create skill rankings func
 create_skill_rankings_table<- function()
@@ -169,7 +175,8 @@ tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, func
 companies <- tmp_frame %>% select(companyid, company_name)
 # table ready for insertion
 companies_table <- distinct(companies, companyid, company_name)
-insert_into_companies_table(companies_table)
+#insert_into_companies_table(companies_table)
+dbWriteTable(con,"companies_table", companies_table)
 
 #Skill data and inserting into DB
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
@@ -190,154 +197,15 @@ tmp_frame <- word_freq %>% mutate(skill_id=unlist(lapply(skill, function(x) {dig
 
 # table ready for insertion
 skill_data <- tmp_frame %>% select(skill_id, skill_name)
-insert_into_skill_types_table(skill_data)
+dbWriteTable(con,"skill_types", skill_data)
+#insert_into_skill_types_table(skill_data)
 ```
-
-
-#### Retrieval of graphs based on frequency
-```{r}
-# Insert any corpus to data. Right now we pass Trang's word_freq
-data <- word_freq
-
-
-#put the data into a corpus for text processing
-text_corpus <- (VectorSource(data))
-text_corpus <- Corpus(text_corpus)
-
-
-##Tokenization: Split a text into single word terms called "unigrams" 
-text_corpus_clean<-Boost_tokenizer(text_corpus)
-
-#Example in R: by using tm package
-#Normalization: lowercase the words and remove punctuation and numbers
-text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
-text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
-text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
-text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
-
-
-##Remove stopwords and custom stopwords
-stop_words <- c(stopwords('english'), "a", "b") 
-text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
-
-tdm <- TermDocumentMatrix(text_corpus_clean) #or 
-dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, Inf)))
-
-
-# looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
-freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
-wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
-
-
-#library(qdap)
-#library(RColorBrewer)
-#library(RWeka)
-
-# Bigram Bars
-BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
-tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
-
-##Extract the frequency of each bigram and analyse the twenty most frequent ones.
-freq = sort(rowSums(as.matrix(tdm.bigram)),decreasing = TRUE)
-freq.df = data.frame(word=names(freq), freq=freq)
-head(freq.df, 20)
-
-
-#visualize the top 15 bigrams
-library(ggplot2)
-ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
-  geom_bar(stat = "identity") + coord_flip() +
-  xlab("Bigrams") + ylab("Frequency") +
-  ggtitle("Most frequent bigrams")
-
-#Skill Rankings DB Insertion
- skill_names  <- skill_data[['skill_name']]
- # skill hash mapped to list of companies
- skill_company_map <- hash()
- 
- 
- for (skill in skill_names)
- {
-   
-   tmp_frame <- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
-   tmp_frame <- tmp_frame %>% select(has_pat, inferred_skills, company_name)
-   pattern_present <- tmp_frame %>% filter(has_pat==TRUE)  # has pattern 
-   companies <- pattern_present[["company_name"]]
-   
-   companies <- companies[!duplicated(companies)]
-   skill_company_map[[skill]] <- companies
- }
-
-# create skill rankings frame
-skill_rankings_frame = tibble() 
-for (key in names(skill_company_map)) {
-  companies <- skill_company_map[[key]]
-  
-  skill_tmp <- skill_data %>% filter(skill_name==key)
-  freq_tmp <- word_freq %>%filter(skill==key)
-  
-  tmp_frame <- tibble(company_name=companies, skill=key, skill_id=skill_tmp[['skill_id']], skill_frequency=freq_tmp[['wfreq']])
-  tmp_frame <- tmp_frame %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
-  skill_rankings_frame <- rbind(tmp_frame, skill_rankings_frame)
-}
-
-skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
-
-# insert into DB 
-create_skill_rankings_table()
-insert_into_skill_rankings_table(skill_rankings_table) 
-
-```
-
-#### WordCloud for Data.World Data
-```{r}
-#Set seed to get the same wordcloud
-set.seed(45)
-
-#install.packages("wordcloud") 
-library(wordcloud)
-
-#WordCloud
-freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
-wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
-```
-
-
-#### WordCloud 2
-```{r}
-library(wordcloud)
-library(qdap)
-#install.packages("qdap")
-library(RColorBrewer)
-library(RWeka)
-
-BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
-tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
-
-##Extract the frequency of each bigram and analyse the twenty most frequent ones.
-freq = sort(rowSums(as.matrix(tdm.bigram)), decreasing = TRUE)
-freq.df = data.frame(word=names(freq), freq=freq)
-head(freq.df, 20)
-
-#visualize the wordcloud   
-wordcloud(freq.df$word, freq.df$freq, max.words=100, random.order = T )
-```
-
-
-#### Most Frequent Bigrams
-```{r}
-#visualize the top 15 bigrams
-library(ggplot2)
-ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
-  geom_bar(stat = "identity") + coord_flip() +
-  xlab("Bigrams") + ylab("Frequency") +
-  ggtitle("Most Frequent Bigrams")
-```
-
-
 #### What are the top requested highly paid data science skills?
 ```{r}
 #Extract skills and salary column
+library(tidyr)
+library(dplyr)
+
 salary_skills <- jobspikr_data %>%  
   select(inferred_skills, inferred_salary_currency, inferred_salary_time_unit, inferred_salary_from, inferred_salary_to)
 
@@ -385,6 +253,151 @@ Skills_freq <- arrange(Skills_freq, desc(weighted_sal))
 head(Skills_freq, n = 10)
 ```
 
+#### Retrieval of graphs based on frequency
+
+```{r}
+# Insert any corpus to data. Right now we pass Trang's word_freq
+data <- word_freq
+
+
+#put the data into a corpus for text processing
+text_corpus <- (VectorSource(data))
+text_corpus <- Corpus(text_corpus)
+
+
+##Tokenization: Split a text into single word terms called "unigrams" 
+text_corpus_clean<-Boost_tokenizer(text_corpus)
+
+#Example in R: by using tm package
+#Normalization: lowercase the words and remove punctuation and numbers
+text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
+text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
+text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
+text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
+
+
+##Remove stopwords and custom stopwords
+stop_words <- c(stopwords('english'), "a", "b") 
+text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
+
+tdm <- TermDocumentMatrix(text_corpus_clean) #or 
+dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, Inf)))
+
+
+# looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
+freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+library(wordcloud)
+wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
+
+
+#library(qdap)
+#library(RColorBrewer)
+#library(RWeka)
+
+# Bigram Bars
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
+
+##Extract the frequency of each bigram and analyse the twenty most frequent ones.
+freq = sort(rowSums(as.matrix(tdm.bigram)),decreasing = TRUE)
+freq.df = data.frame(word=names(freq), freq=freq)
+head(freq.df, 20)
+
+
+#visualize the top 15 bigrams
+library(ggplot2)
+ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
+  geom_bar(stat = "identity") + coord_flip() +
+  xlab("Bigrams") + ylab("Frequency") +
+  ggtitle("Most frequent bigrams")
+
+#Skill Rankings DB Insertion
+ skill_names  <- skill_data[['skill_name']]
+ # skill hash mapped to list of companies
+ library(hash)
+ skill_company_map <- hash()
+ 
+ for (skill in skill_names)
+ {
+   
+   tmp_frame <- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
+   tmp_frame <- tmp_frame %>% select(has_pat, inferred_skills, company_name)
+   pattern_present <- tmp_frame %>% filter(has_pat==TRUE)  # has pattern 
+   companies <- pattern_present[["company_name"]]
+   
+   companies <- companies[!duplicated(companies)]
+   skill_company_map[[skill]] <- companies
+ }
+
+# create skill rankings frame
+skill_rankings_frame = tibble() 
+for (key in names(skill_company_map)) {
+  companies <- skill_company_map[[key]]
+  
+  skill_tmp <- skill_data %>% filter(skill_name==key)
+  freq_tmp <- word_freq %>%filter(skill==key)
+  
+  tmp_frame <- tibble(company_name=companies, skill=key, skill_id=skill_tmp[['skill_id']], skill_frequency=freq_tmp[['wfreq']])
+  tmp_frame <- tmp_frame %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+  skill_rankings_frame <- rbind(tmp_frame, skill_rankings_frame)
+}
+
+skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
+
+# insert into DB 
+#create_skill_rankings_table()
+#insert_into_skill_rankings_table(skill_rankings_table) 
+dbWriteTable(con,"skill_rankings",skill_rankings_table)
+
+```
+
+#### WordCloud for Data.World Data
+```{r}
+#Set seed to get the same wordcloud
+set.seed(45)
+
+#install.packages("wordcloud") 
+library(wordcloud)
+
+#WordCloud
+freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
+```
+
+
+#### WordCloud 2
+```{r}
+library(wordcloud)
+library(qdap)
+#install.packages("qdap")
+library(RColorBrewer)
+library(RWeka)
+
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
+
+##Extract the frequency of each bigram and analyse the twenty most frequent ones.
+freq = sort(rowSums(as.matrix(tdm.bigram)), decreasing = TRUE)
+freq.df = data.frame(word=names(freq), freq=freq)
+head(freq.df, 20)
+
+#visualize the wordcloud   
+wordcloud(freq.df$word, freq.df$freq, max.words=100, random.order = T )
+```
+
+#### Most Frequent Bigrams
+```{r}
+#visualize the top 15 bigrams
+library(ggplot2)
+ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
+  geom_bar(stat = "identity") + coord_flip() +
+  xlab("Bigrams") + ylab("Frequency") +
+  ggtitle("Most Frequent Bigrams")
+```
+
+
+
+
 
 #### Plot of the top 20 Highly Paid Data Science Skills
 ```{r}
@@ -422,7 +435,7 @@ Indeed_data<-data.frame(job.title=character(),
                 job.seen.beacon=character(),
                 job.id=character())
 pagenumber <- 0
-for (i in 0:100) {
+for (i in 0:10) {
     temp = as.character(i*10)
     link <- "https://www.indeed.com/jobs?q=data%20scientist&start=" 
     link <- paste(link,temp,sep="")
@@ -469,7 +482,6 @@ Indeed_data<-Indeed_data %>%
 Indeed_data$location.type= ifelse (str_detect(Indeed_data$location,"Remote")==TRUE,"Remote", "" )
 Indeed_data$location<-str_replace(Indeed_data$location,"Remote","")
 
-View(Indeed_data)    
 write.csv(Indeed_data,"~/Desktop/Indeed_data.csv")
 ```
 
