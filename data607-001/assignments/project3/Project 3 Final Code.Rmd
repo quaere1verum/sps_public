@@ -542,26 +542,7 @@ ggplot(top_n(word_freq,35), aes(x=reorder(skill,wfreq),y = wfreq)) +
 ```
 
 
-#### Conclusion: {brief conclusion}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#### To answer our initial question "Which are the most valued data science skills?" from our datasets [Data.World](https://data.world/jobspikr/10000-data-scientist-job-postings-from-the-usa/workspace/file?filename=data_scientist_united_states_job_postings_jobspikr.csv] and a downloaded HTML files from Indeed [https://www.indeed.com/jobs?l=New%20York%20State&vjk=ae3c34627b58db77) and from [Indeed.com](https://www.indeed.com/jobs?q=data%20scientist&start=) we were able to conclude that software skills: Python, Machine Learning and SQL rank amongst the highest as well as general skills: analysis, statistics, design, research and management.
 
 
 
