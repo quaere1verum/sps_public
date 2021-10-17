@@ -104,12 +104,32 @@ library(DBI)
 #install.packages("RMySQL")
 library(RMySQL)
 
+# Create connection to DB 
+con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
 
-# Trying tmp tables
-dbWriteTable(con,"myTempTable", companies_table)
-dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
-dbExecute(con,"drop table if exists myTempTable")
-dbExecute(con,"commit;")
+# Set global local_infile=true;
+dbSendQuery(con, "set global local_infile=true")
+
+# Create skill rankings function
+create_skill_rankings_table<- function()
+{
+    dbExecute(con,"drop table if exists skill_rankings")
+    dbExecute(con,"commit;")
+    skill_rankings_create_sql <- 'CREATE TABLE `skill_rankings`
+    (   `skill_frequency` int NOT NULL,
+        `companyid` varchar(100) NOT NULL,
+        `skill_id` varchar(100) NOT NULL,
+         primary key( companyid, skill_id),
+         foreign key(companyid) references companies(companyid),
+    	  foreign key (skill_id)  references skill_types(skill_id) )'
+    dbSendQuery(con, skill_rankings_create_sql)
+}
+
+dbWriteTable(con, "myTempTable", companies_table)
+dbExecute(con, "insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
+dbExecute(con, "drop table if exists myTempTable")
+dbExecute(con, "commit;")
+
 
 # companies data is your data frame with the same schema as companies table defined under sql
 insert_into_companies_table<- function(companies_data)
@@ -120,6 +140,7 @@ insert_into_companies_table<- function(companies_data)
   dbExecute(con,"commit;")
 }
 
+
 # same thing, schema needs to be the same
 insert_into_skill_types_table <- function(skill_data)
 {
@@ -127,10 +148,10 @@ insert_into_skill_types_table <- function(skill_data)
   dbExecute(con,"insert into skill_types(skill_id, skill_name) select skill_id, skill_name from myTempTable")
   dbExecute(con,"drop table if exists myTempTable")
   dbExecute(con,"commit;")
-  
 }
 
-# Skill Set should be in Database
+
+# Skill set should be in Database
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
 skillset <-data.frame(skill=character())
 s <-length(test)
