@@ -1,0 +1,147 @@
+---
+title: "Untitled"
+author: "Cassie Boylan"
+date: "10/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set()
+
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(reshape2)
+library(readxl)
+library(httr)
+```
+
+```{r}
+df <- read.csv("https://query.data.world/s/h3ae4gcouun76aodnc7naz2kmmd7fk", header=TRUE, stringsAsFactors=FALSE);
+```
+```{r}
+df <- read.csv("https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv", header=TRUE, stringsAsFactors=FALSE)
+
+df <- df %>% select(-c(crawl_timestamp,url))
+```
+```{r}
+df <- df %>% 
+  mutate(job_title_parse1 = sub(".*Data Scientist","", job_title))
+
+df <- df %>% mutate(job_title_parse2 = sub("Data Scientist.*","", job_title))
+
+df$job_title_parse1 <- tolower(df$job_title_parse1)
+df$job_title_parse1 <- str_replace_all(df$job_title_parse1, "[[:punct:]]", "")
+df$job_title_parse2 <- str_replace_all(df$job_title_parse2, "[^[:alnum:]]", "")
+df$job_title_parse2 <- tolower(df$job_title_parse2)
+
+```
+```{r}
+freq_x <- sort(table(unlist(strsplit(df$job_title_parse1, " "))),      # Create frequency table
+               decreasing = TRUE)
+freq_x <- data.frame(freq_x)
+print(freq_x)
+
+```
+```{r}
+job_seniority <- df %>% select("Var1" = job_title_parse2)
+
+job_seniority %>% rename
+
+freq_y <- sort(table(unlist(strsplit(df$job_title_parse2, " "))),      # Create frequency table
+               decreasing = TRUE)
+freq_y <- data.frame(freq_y)
+print(freq_y)
+job_seniority <- job_seniority %>% mutate(seniority = case_when(
+  grepl("sr",Var1) ~ "senior",
+  grepl("jr",Var1) ~ "junior",
+  grepl("senior", Var1,) ~ "senior",
+  grepl("junior",Var1) ~ "junior",
+  grepl("associate", Var1) ~ "associate",
+  grepl("lead", Var1) ~ "lead",
+  grepl("principal", Var1) ~ "principal"
+))
+
+job_seniority <- job_seniority %>% transmute(
+  seniority_level = coalesce(seniority,Var1))
+
+levels <- c("senior", "staff", "junior", "entrylevel", "lead", "associate", "principal","director")
+
+experience <- job_seniority %>% filter(seniority_level %in% levels)
+
+experience <- experience %>% count(seniority_level, sort=TRUE)
+  
+print(experience)
+```
+```{r}
+job_seniority$seniority_level[!job_seniority$seniority_level %in% levels] <- NA
+
+df <- cbind(df,job_seniority)
+df <- df %>% select(-c(job_title_parse1,job_title_parse2))
+
+
+
+```
+
+```{r}
+industry_results <- table(df$category)
+industry_results <- data.frame(industry_results) %>% arrange(desc(Freq))
+print(industry_results)
+
+```
+```{r}
+summary(df$inferred_salary_from)
+summary(df$inferred_salary_to)
+
+```
+
+```{r}
+df %>% filter(!inferred_salary_from >= 300000 & !inferred_salary_from <= 20000 ) %>% ggplot(aes(x=inferred_salary_from)) + geom_histogram(binwidth=20000) + xlab("Minimum Salary")
+
+df %>% filter(!inferred_salary_to >= 500000 & !inferred_salary_to <= 20000 ) %>% ggplot(aes(x=inferred_salary_to)) + geom_histogram(binwidth=20000) + xlab("Maximum Salary")
+```
+
+```{r}
+df %>%filter(!inferred_salary_from >= 300000 & !inferred_salary_from <= 20000 ) %>% ggplot(aes(inferred_salary_from)) + geom_boxplot()
+```
+
+```{r}
+skill <- df%>% separate_rows(inferred_skills, sep="\\|") %>% select(contains("skill"))
+
+top_thirty <- skill %>% count(inferred_skills, sort=TRUE) %>% head(30)
+
+ggplot(top_thirty,aes(x=reorder(inferred_skills,n), y=n, color=as.factor(n))) + geom_bar(stat="identity") +coord_flip() + xlab("Most Cited Skills") + ylab("Appearnce in Job Description") + theme(legend.position = "none") 
+```
+```{r}
+skill_distinct <- distinct(skill)
+```
+```{r}
+
+top_thirty <- top_thirty %>% mutate(perc = n/200)
+
+ggplot(top_thirty,aes(x=reorder(inferred_skills,perc), y=perc, color=as.factor(perc))) + geom_bar(stat="identity") + coord_flip() + xlab("Most Cited Skills") + ylab("% of Job Descriptions") + theme(legend.position = "none") + geom_hline(yintercept = .2)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
