@@ -99,10 +99,16 @@ companies_table <- distinct(companies, companyid, company_name)
 
 
 ```{r}
+# install required packages and load libraries
 #install.packages("DBI")
 library(DBI)
+
 #install.packages("RMySQL")
 library(RMySQL)
+
+#install.packages("tidyverse")
+library(tidyverse)
+
 
 # Create connection to DB 
 con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
@@ -110,7 +116,7 @@ con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
 # Set global local_infile=true;
 dbSendQuery(con, "set global local_infile=true")
 
-# Create skill rankings function
+# Create skill rankings func
 create_skill_rankings_table<- function()
 {
     dbExecute(con,"drop table if exists skill_rankings")
@@ -125,33 +131,47 @@ create_skill_rankings_table<- function()
     dbSendQuery(con, skill_rankings_create_sql)
 }
 
-dbWriteTable(con, "myTempTable", companies_table)
-dbExecute(con, "insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
-dbExecute(con, "drop table if exists myTempTable")
-dbExecute(con, "commit;")
 
 
-# companies data is your data frame with the same schema as companies table defined under sql
+# Companies data is your data frame with the same schema as companies table defined under sql
 insert_into_companies_table<- function(companies_data)
 {
+  dbExecute(con,"drop table if exists myTempTable")
   dbWriteTable(con,"myTempTable", companies_data)
   dbExecute(con,"insert into companies(companyid, company_name) select companyid, company_name from myTempTable")
   dbExecute(con,"drop table if exists myTempTable")
   dbExecute(con,"commit;")
 }
 
-
-# same thing, schema needs to be the same
+# Same thing, schema needs to be the same
 insert_into_skill_types_table <- function(skill_data)
 {
+  dbExecute(con,"drop table if exists myTempTable")
   dbWriteTable(con,"myTempTable", skill_data)
   dbExecute(con,"insert into skill_types(skill_id, skill_name) select skill_id, skill_name from myTempTable")
   dbExecute(con,"drop table if exists myTempTable")
   dbExecute(con,"commit;")
 }
 
+# Same thing, schema needs to be the same
+insert_into_skill_rankings_table <- function(skill_rankings_data)
+{
+  dbExecute(con,"drop table if exists myTempTable")
+  dbWriteTable(con,"myTempTable", skill_rankings_data)
+  dbExecute(con,"insert into skill_rankings(skill_frequency, companyid, skill_id) select skill_frequency, companyid, skill_id from myTempTable")
+  dbExecute(con,"drop table if exists myTempTable")
+  dbExecute(con,"commit;")
+}
 
-# Skill set should be in Database
+
+# get Company data from frame and insert into table
+tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+companies <- tmp_frame %>% select(companyid, company_name)
+# table ready for insertion
+companies_table <- distinct(companies, companyid, company_name)
+insert_into_companies_table(companies_table)
+
+#Skill data and inserting into DB
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
 skillset <-data.frame(skill=character())
 s <-length(test)
@@ -162,7 +182,6 @@ for (i in 1:s){
     skillset <-rbind(skillset,rows)
   }  
 }
-
 word_freq<- skillset %>% group_by(skill)%>%   summarise(wfreq=n()) 
 
 # drop skill names that are NA doesn't make sense
@@ -177,34 +196,17 @@ insert_into_skill_types_table(skill_data)
 
 #### Retrieval of graphs based on frequency
 ```{r}
-# Looks like job description has a lot of things mixed in it. Requirements, disclaimers, company culture descriptions
-# character array 
-job_description_data <- jobspikr_data[['job_description']]
+# Insert any corpus to data. Right now we pass Trang's word_freq
+data <- word_freq
 
 
-data<- job_description_data
-data <- jobspikr_data[['inferred_skills']]
-
-# What happens if we pass data without | and instead spitted data?
-inferred_skills <- jobspikr_data[['inferred_skills']]
-inferred_skills <- strsplit(inferred_skills, "\\|")
-data <- inferred_skills
-
-# Put the data into a corpus for text processing
+#put the data into a corpus for text processing
 text_corpus <- (VectorSource(data))
 text_corpus <- Corpus(text_corpus)
-summary(text_corpus)
-
-
-# To see the text and examine the corpus
-text_corpus[[5]]$content
-for (i in 1:5) print (text_corpus[[i]]$content)
 
 
 ##Tokenization: Split a text into single word terms called "unigrams" 
 text_corpus_clean<-Boost_tokenizer(text_corpus)
-#text_corpus_clean[[1]]$content
-
 
 #Example in R: by using tm package
 #Normalization: lowercase the words and remove punctuation and numbers
@@ -213,22 +215,77 @@ text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
 text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
 text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
 
-stop_words <- c(stopwords('english'), "a", "b") 
 
-##Remove more stop words
+##Remove stopwords and custom stopwords
+stop_words <- c(stopwords('english'), "a", "b") 
 text_corpus_clean <- tm_map(text_corpus_clean, removeWords, stop_words)
 
 tdm <- TermDocumentMatrix(text_corpus_clean) #or 
 dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, Inf)))
-inspect(tdm)
 
 
-#inspect part of the term-document matrix
-inspect(tdm[1:10, 1:50])
+# looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
+freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 
-#Frequent terms that occur between 30 and 50 times in the corpus
-frequent_terms <- findFreqTerms (tdm,30,50) 
+#library(qdap)
+#library(RColorBrewer)
+#library(RWeka)
+
+# Bigram Bars
+BigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm.bigram = TermDocumentMatrix(text_corpus_clean, control = list(tokenize = BigramTokenizer))
+
+##Extract the frequency of each bigram and analyse the twenty most frequent ones.
+freq = sort(rowSums(as.matrix(tdm.bigram)),decreasing = TRUE)
+freq.df = data.frame(word=names(freq), freq=freq)
+head(freq.df, 20)
+
+
+#visualize the top 15 bigrams
+library(ggplot2)
+ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
+  geom_bar(stat = "identity") + coord_flip() +
+  xlab("Bigrams") + ylab("Frequency") +
+  ggtitle("Most frequent bigrams")
+
+#Skill Rankings DB Insertion
+ skill_names  <- skill_data[['skill_name']]
+ # skill hash mapped to list of companies
+ skill_company_map <- hash()
+ 
+ 
+ for (skill in skill_names)
+ {
+   
+   tmp_frame <- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
+   tmp_frame <- tmp_frame %>% select(has_pat, inferred_skills, company_name)
+   pattern_present <- tmp_frame %>% filter(has_pat==TRUE)  # has pattern 
+   companies <- pattern_present[["company_name"]]
+   
+   companies <- companies[!duplicated(companies)]
+   skill_company_map[[skill]] <- companies
+ }
+
+# create skill rankings frame
+skill_rankings_frame = tibble() 
+for (key in names(skill_company_map)) {
+  companies <- skill_company_map[[key]]
+  
+  skill_tmp <- skill_data %>% filter(skill_name==key)
+  freq_tmp <- word_freq %>%filter(skill==key)
+  
+  tmp_frame <- tibble(company_name=companies, skill=key, skill_id=skill_tmp[['skill_id']], skill_frequency=freq_tmp[['wfreq']])
+  tmp_frame <- tmp_frame %>% mutate(companyid=unlist(lapply(company_name, function(x) {digest(x, algo="md5", serialize = F)})   ))
+  skill_rankings_frame <- rbind(tmp_frame, skill_rankings_frame)
+}
+
+skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
+
+# insert into DB 
+create_skill_rankings_table()
+insert_into_skill_rankings_table(skill_rankings_table) 
 
 ```
 

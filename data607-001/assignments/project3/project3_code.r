@@ -247,7 +247,7 @@ ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
 
 
 #############################################################
-#### Skill Rankings DB Insertion #### 
+#### Skill Rankings DB Insertion ####
  skill_names  <- skill_data[['skill_name']]
  # skill hash mapped to list of companies
  skill_company_map <- hash()
