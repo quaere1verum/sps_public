@@ -41,9 +41,7 @@ load_csv_from_url <- function(url_path)
 
 #### Loading the data from GitHub
 ```{r}
-jobspikr_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_united_states_job_postings_jobspikr.csv'
-
-jobspikr_small_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data607-001/assignments/project3/data_scientist_jobspikr_10152021_merged.csv'
+jobspikr_small_url = 'https://raw.githubusercontent.com/quaere1verum/sps_public/master/data_scientist_42928_20211010_1633890523765196_1.csv'
 
 
 jobspikr_data <- load_csv_from_url(jobspikr_small_url)
@@ -114,6 +112,9 @@ library(tidyverse)
 #con <- dbConnect(MySQL(), user='root', dbname='project3', host='localhost')
 
 # Set global local_infile=true;
+<<<<<<< HEAD
+dbSendQuery(con, "SET GLOBAL local_infile = true;")
+=======
 #dbSendQuery(con, "set global local_infile=true")
 db <- 'project3'  #provide the name of your db
 host_db <- 'localhost'
@@ -121,6 +122,7 @@ db_port <- '5432'
 db_user <- 'postgres' 
 db_password <- 'data607'
 con <- dbConnect(RPostgres::Postgres(), dbname = db, host=host_db, port=db_port, user=db_user, password=db_password) 
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 
 # Create skill rankings func
 create_skill_rankings_table<- function()
@@ -137,7 +139,10 @@ create_skill_rankings_table<- function()
     dbSendQuery(con, skill_rankings_create_sql)
 }
 
+<<<<<<< HEAD
+=======
 
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 
 # Companies data is your data frame with the same schema as companies table defined under sql
 insert_into_companies_table<- function(companies_data)
@@ -175,8 +180,12 @@ tmp_frame <- jobspikr_data %>% mutate(companyid=unlist(lapply(company_name, func
 companies <- tmp_frame %>% select(companyid, company_name)
 # table ready for insertion
 companies_table <- distinct(companies, companyid, company_name)
+<<<<<<< HEAD
+insert_into_companies_table(companies_table)
+=======
 #insert_into_companies_table(companies_table)
 dbWriteTable(con,"companies_table", companies_table)
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 
 #Skill data and inserting into DB
 test<-strsplit(jobspikr_data$inferred_skills, split = "\\|")
@@ -209,6 +218,14 @@ library(dplyr)
 salary_skills <- jobspikr_data %>%  
   select(inferred_skills, inferred_salary_currency, inferred_salary_time_unit, inferred_salary_from, inferred_salary_to)
 
+<<<<<<< HEAD
+#### Retrieval of graphs based on frequency
+```{r}
+# Insert any corpus to data. Right now we pass Trang's word_freq
+data <- word_freq
+
+
+=======
 #Filter out inferred_salary_currency = 'INR' or 'blank'
 salary_skills <- filter(salary_skills, inferred_salary_currency == 'USD')
 
@@ -260,6 +277,7 @@ head(Skills_freq, n = 10)
 data <- word_freq
 
 
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 #put the data into a corpus for text processing
 text_corpus <- (VectorSource(data))
 text_corpus <- Corpus(text_corpus)
@@ -270,7 +288,7 @@ text_corpus_clean<-Boost_tokenizer(text_corpus)
 
 #Example in R: by using tm package
 #Normalization: lowercase the words and remove punctuation and numbers
-text_corpus_clean<-tm_map(text_corpus , content_transformer(tolower))
+text_corpus_clean <- tm_map(text_corpus , content_transformer(tolower))
 text_corpus_clean <- tm_map(text_corpus_clean, removePunctuation)
 text_corpus_clean <- tm_map(text_corpus_clean, removeNumbers)
 text_corpus_clean <- tm_map(text_corpus_clean, stripWhitespace)
@@ -286,7 +304,10 @@ dtm <- DocumentTermMatrix(text_corpus_clean, control = list(wordLengths = c(4, I
 
 # looks like the text book's cover.. good for presentation, but we care more about the frames for the coding part
 freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+<<<<<<< HEAD
+=======
 library(wordcloud)
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 
@@ -314,12 +335,20 @@ ggplot(head(freq.df, 15), aes(reorder(word,freq), freq)) +
 #Skill Rankings DB Insertion
  skill_names  <- skill_data[['skill_name']]
  # skill hash mapped to list of companies
+<<<<<<< HEAD
+ skill_company_map <- hash()
+ 
+ 
+ for (skill in skill_names)
+ {
+=======
  library(hash)
  skill_company_map <- hash()
  
  for (skill in skill_names)
  {
    
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
    tmp_frame <- jobspikr_data %>% mutate(has_pat=grepl(skill, jobspikr_data[['inferred_skills']], fixed=TRUE))
    tmp_frame <- tmp_frame %>% select(has_pat, inferred_skills, company_name)
    pattern_present <- tmp_frame %>% filter(has_pat==TRUE)  # has pattern 
@@ -345,9 +374,14 @@ for (key in names(skill_company_map)) {
 skill_rankings_table <- skill_rankings_frame %>% select(skill_frequency, companyid, skill_id)
 
 # insert into DB 
+<<<<<<< HEAD
+create_skill_rankings_table()
+insert_into_skill_rankings_table(skill_rankings_table) 
+=======
 #create_skill_rankings_table()
 #insert_into_skill_rankings_table(skill_rankings_table) 
 dbWriteTable(con,"skill_rankings",skill_rankings_table)
+>>>>>>> 36b66f1acf9620aad95b8305a3cdeef8a09c513c
 
 ```
 

@@ -1,4 +1,4 @@
-
+#ALTER USER 'root'@'localhost' IDENTIFIED BY '';
 
 # Assumptions:
 # ------------
@@ -65,4 +65,3 @@ describe companies;
 
 select * from skill_rankings;
  **/  
-
