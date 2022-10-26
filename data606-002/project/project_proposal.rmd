@@ -1,0 +1,80 @@
+---
+title: DATA 606 Data Project Proposal
+author:  Javier Pajuelo Bazan
+---
+
+### Data Preparation
+
+```{r setup, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# load data
+```
+
+
+### Research question 
+
+**You should phrase your research question in a way that matches up with the scope of inference your dataset allows for.**
+
+Is CryoSleep predictive of a passenger was Transported=True?
+
+### Cases 
+
+**What are the cases, and how many are there?**
+Each case represents a passenger.
+
+8700 in the train set
+4300 in the test set
+
+
+
+### Data collection 
+
+**Describe the method of data collection.**
+
+Data is collected from Kaggle. It belongs to a competition and I believe it's an imaginary scenario.
+
+
+### Type of study 
+
+**What type of study is this (observational/experiment)?**
+
+This is an observational study.
+
+
+### Data Source 
+
+**If you collected the data, state self-collected. If not, provide a citation/link.**
+
+Data was not self collected, but retrieved from Kaggle.
+
+https://www.kaggle.com/competitions/spaceship-titanic/overview
+Cite it.
+
+
+
+### Dependent Variable
+
+**What is the response variable? Is it quantitative or qualitative?**
+
+The response variable is the Transported boolean and it is numerical (0 or 1)
+
+
+
+### Relevant summary statistics 
+
+**Provide summary statistics for each the variables. Also include appropriate visualizations related to your research question (e.g. scatter plot, boxplots, etc). This step requires the use of R, hence a code chunk is provided below. Insert more code chunks as needed.**
+
+```{r}
+library(tidyverse)
+library(curl)
+library(dplyr)                      
+
+load_csv_from_url <- function(url_path)
+{
+  tmp <- tempfile()
+  curl_download(url_path, tmp)
+  read_csv(tmp)
+}
+ 
+approval_polls <- load_csv_from_url("https://raw.githubusercontent.com/fivethirtyeight/covid-19-polls/master/covid_approval_polls.csv")
+
+```
