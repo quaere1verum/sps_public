@@ -1,37 +1,37 @@
-job_title,city,state,salary per year ($),,,,,,
-machine learning,New York,NY,188172,,,,,,
-machine learning,San Francisco,CA,183281,,,,,,
-machine learning,Santa Clara,CA,182851,,,,,,
-machine learning,Cupertino,CA,178859,,,,,,
-machine learning,Seattle,WA,176372,,,,,,
-machine learning,Mountain View,CA,176302,,,,,,
-machine learning,San Jose,CA,171124,,,,,,
-machine learning,San Diego,CA,154562,,,,,,
-machine learning,St. Louis,MO,138618,,,,,,
-data analyst,st. louis,MO,97787,,,,,,
-data analyst,charlotte,NC,96105,,,,,,
-data analyst,washington,DC,91038,,,,,,
-data analyst,boston,MA,85578,,,,,,
-data analyst,austin,TX,84673,,,,,,
-data analyst,new york,NY,83999,,,,,,
-data analyst,atlanta,GA,78849,,,,,,
-data analyst,shelton,CT,76952,,,,,,
-data analyst,dallas,TX,75204,,,,,,
-data engineer,san jose,CA,175900,,,,,,
-data engineer,san francisco,CA,157286,,,,,,
-data engineer,richmond,VA,132635,,,,,,
-data engineer,mclean,VA,131657,,,,,,
-data engineer,boston,MA,129913,,,,,,
-data engineer,chicago,IL,125716,,,,,,
-data engineer,San Diego,CA,124918,,,,,,
-data engineer,irving,CA,119235,,,,,,
-data engineer,atlanta,GA,115112,,,,,,
-data scientist,palo alto,CA,168129,,,,,,
-data scientist,redmond,WA,141286,,,,,,
-data scientist,Seattle,WA,138830,,,,,,
-data scientist,austin,TX,127741,,,,,,
-data scientist,new york,NY,126427,,,,,,
-data scientist,boston,MA,123549,,,,,,
-data scientist,bellevue,WA,123192,,,,,,
-data scientist,chicago,IL,112988,,,,,,
-data scientist,atlanta,GA,110433,,,,,,
+job_title,city,state,salary per year ($)
+machine learning,New York,NY,188172
+machine learning,San Francisco,CA,183281
+machine learning,Santa Clara,CA,182851
+machine learning,Cupertino,CA,178859
+machine learning,Seattle,WA,176372
+machine learning,Mountain View,CA,176302
+machine learning,San Jose,CA,171124
+machine learning,San Diego,CA,154562
+machine learning,St. Louis,MO,138618
+data analyst,st. louis,MO,97787
+data analyst,charlotte,NC,96105
+data analyst,washington,DC,91038
+data analyst,boston,MA,85578
+data analyst,austin,TX,84673
+data analyst,new york,NY,83999
+data analyst,atlanta,GA,78849
+data analyst,shelton,CT,76952
+data analyst,dallas,TX,75204
+data engineer,san jose,CA,175900
+data engineer,san francisco,CA,157286
+data engineer,richmond,VA,132635
+data engineer,mclean,VA,131657
+data engineer,boston,MA,129913
+data engineer,chicago,IL,125716
+data engineer,San Diego,CA,124918
+data engineer,irving,CA,119235
+data engineer,atlanta,GA,115112
+data scientist,palo alto,CA,168129
+data scientist,redmond,WA,141286
+data scientist,Seattle,WA,138830
+data scientist,austin,TX,127741
+data scientist,new york,NY,126427
+data scientist,boston,MA,123549
+data scientist,bellevue,WA,123192
+data scientist,chicago,IL,112988
+data scientist,atlanta,GA,110433
